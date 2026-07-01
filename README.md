@@ -6,9 +6,10 @@
 
 ```
 .
-├── Frame 16.png   # 页面主图
-├── index.html     # 入口页面
-├── wrangler.toml  # Cloudflare Workers 配置
+├── public/
+│   ├── Frame 16.png   # 页面主图
+│   └── index.html     # 入口页面
+├── wrangler.toml      # Cloudflare Workers 配置
 └── package.json
 ```
 
