@@ -14,5 +14,5 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "new-option-db"
-database_id = "local-dev-placeholder"
+database_id = "377fe925-f923-42bc-80b3-1889d7f30408"
 migrations_dir = "migrations"
