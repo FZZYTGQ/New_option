@@ -28,7 +28,7 @@ export function renderSharePage(data, shareId) {
 <body>
   <div class="page">
     <header class="hero hero--compact">
-      <img src="/pic2.png" alt="小赵学姐的黑科技" class="hero__logo">
+      <img src="/pic3.png" alt="小赵学姐的黑科技" class="hero__logo">
       <h1 class="hero__title">小赵学姐的黑科技</h1>
       <p class="hero__subtitle">分享内容 · ${escapeHtml(platform)}</p>
     </header>
