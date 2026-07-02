@@ -1,8 +1,5 @@
 import {
-  buildSessionCookie,
-  createSessionId,
   hashPassword,
-  isSecureRequest,
 } from "../auth.js";
 import {
   createId,
@@ -176,6 +173,21 @@ export async function handleAdminPatchUser(request, env, userId) {
     await env.DB.prepare("UPDATE users SET status = ?, updated_at = ? WHERE id = ?")
       .bind(payload.status, timestamp, userId)
       .run();
+  }
+
+  if (typeof payload.resetPassword === "string" && payload.resetPassword) {
+    if (payload.resetPassword.length < 6) {
+      return jsonResponse({ success: false, error: "密码至少 6 位" }, 400);
+    }
+
+    const passwordHash = await hashPassword(payload.resetPassword);
+    await env.DB.prepare(
+      "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?"
+    )
+      .bind(passwordHash, timestamp, userId)
+      .run();
+
+    await env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(userId).run();
   }
 
   const updated = await env.DB.prepare(

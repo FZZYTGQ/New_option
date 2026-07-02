@@ -3,7 +3,9 @@ import {
   apiGet,
   apiPatch,
   apiPost,
+  escapeHtml,
   formatDate,
+  formatDateCompact,
   requireAuth,
 } from "./api.js";
 import { showToast } from "./toast.js";
@@ -16,6 +18,12 @@ const panels = {
   records: document.getElementById("panel-records"),
   create: document.getElementById("panel-create"),
 };
+const resetPasswordDialog = document.getElementById("reset-password-dialog");
+const resetPasswordForm = document.getElementById("reset-password-form");
+const resetPasswordEmail = document.getElementById("reset-password-email");
+const resetPasswordInput = document.getElementById("reset-password-input");
+
+let resetPasswordUserId = null;
 
 function setStatus(message, type = "error") {
   status.hidden = false;
@@ -38,6 +46,39 @@ function switchTab(name) {
   });
 }
 
+function renderStatusBadge(itemStatus) {
+  const success = itemStatus === "success";
+  return `<span class="status-badge ${success ? "status-badge--success" : "status-badge--failed"}">${success ? "成功" : "失败"}</span>`;
+}
+
+function renderRecentTable(recent) {
+  return recent.length
+    ? `<table class="data-table data-table--admin data-table--recent">
+        <thead>
+          <tr>
+            <th class="col-time">时间</th>
+            <th class="col-user">用户</th>
+            <th class="col-platform">平台</th>
+            <th class="col-title">标题</th>
+            <th class="col-charge">扣费</th>
+            <th class="col-status">状态</th>
+          </tr>
+        </thead>
+        <tbody>${recent
+          .map(
+            (item) => `<tr>
+              <td class="col-time">${formatDateCompact(item.created_at)}</td>
+              <td class="col-user">${escapeHtml(item.email)}</td>
+              <td class="col-platform">${escapeHtml(PLATFORM_LABELS[item.platform] || item.platform || "-")}</td>
+              <td class="col-title">${escapeHtml(item.title || "-")}</td>
+              <td class="col-charge">${item.minutes_charged || 0} 分</td>
+              <td class="col-status">${renderStatusBadge(item.status)}</td>
+            </tr>`
+          )
+          .join("")}</tbody></table>`
+    : `<p class="hint">暂无记录</p>`;
+}
+
 function renderStats(data) {
   document.getElementById("stats-grid").innerHTML = `
     <div class="stat-card"><div class="stat-card__label">总用户数</div><div class="stat-card__value">${data.totalUsers}</div></div>
@@ -46,35 +87,19 @@ function renderStats(data) {
     <div class="stat-card"><div class="stat-card__label">累计消耗（分钟）</div><div class="stat-card__value">${data.totalUsedMinutes}</div></div>
   `;
 
-  const recent = data.recent || [];
-  document.getElementById("recent-records").innerHTML = recent.length
-    ? `<table class="data-table">
-        <thead><tr><th>时间</th><th>用户</th><th>平台</th><th>标题</th><th>扣费</th><th>状态</th></tr></thead>
-        <tbody>${recent
-          .map(
-            (item) => `<tr>
-              <td>${formatDate(item.created_at)}</td>
-              <td>${item.email}</td>
-              <td>${PLATFORM_LABELS[item.platform] || item.platform || "-"}</td>
-              <td>${item.title || "-"}</td>
-              <td>${item.minutes_charged || 0}</td>
-              <td>${item.status === "success" ? "成功" : "失败"}</td>
-            </tr>`
-          )
-          .join("")}</tbody></table>`
-    : `<p class="hint">暂无记录</p>`;
+  document.getElementById("recent-records").innerHTML = renderRecentTable(data.recent || []);
 }
 
 function renderUsers(users) {
   document.getElementById("users-table").innerHTML = `
-    <table class="data-table">
+    <table class="data-table data-table--admin">
       <thead>
         <tr>
           <th>邮箱</th>
-          <th>注册时间</th>
-          <th>剩余额度</th>
-          <th>已用</th>
-          <th>状态</th>
+          <th class="col-time">注册时间</th>
+          <th class="col-charge">剩余额度</th>
+          <th class="col-charge">已用</th>
+          <th class="col-status">状态</th>
           <th>操作</th>
         </tr>
       </thead>
@@ -82,16 +107,19 @@ function renderUsers(users) {
         ${users
           .map(
             (user) => `<tr>
-              <td>${user.email}</td>
-              <td>${formatDate(user.created_at)}</td>
-              <td>${user.quota_minutes} 分</td>
-              <td>${user.used_minutes} 分</td>
-              <td>${user.status === "active" ? "正常" : "禁用"}</td>
+              <td>${escapeHtml(user.email)}</td>
+              <td class="col-time">${formatDateCompact(user.created_at)}</td>
+              <td class="col-charge">${user.quota_minutes} 分</td>
+              <td class="col-charge">${user.used_minutes} 分</td>
+              <td class="col-status">${user.status === "active" ? "正常" : "禁用"}</td>
               <td class="table-actions">
-                <button class="btn btn--secondary btn--small" data-action="add30" data-id="${user.id}">+30</button>
-                <button class="btn btn--secondary btn--small" data-action="add60" data-id="${user.id}">+60</button>
+                <div class="quota-control">
+                  <input class="input input--compact" type="number" min="1" placeholder="分钟" data-quota-for="${user.id}">
+                  <button class="btn btn--secondary btn--small" data-action="addQuota" data-id="${user.id}">增加</button>
+                </div>
+                <button class="btn btn--secondary btn--small" data-action="resetPassword" data-id="${user.id}" data-email="${escapeHtml(user.email)}">重置密码</button>
                 <button class="btn btn--secondary btn--small" data-action="toggle" data-id="${user.id}" data-status="${user.status}">${user.status === "active" ? "禁用" : "启用"}</button>
-                <button class="btn btn--secondary btn--small" data-action="records" data-email="${user.email}">记录</button>
+                <button class="btn btn--secondary btn--small" data-action="records" data-email="${escapeHtml(user.email)}">记录</button>
               </td>
             </tr>`
           )
@@ -100,20 +128,41 @@ function renderUsers(users) {
     </table>
   `;
 
+  bindUserActions();
+}
+
+function bindUserActions() {
   document.querySelectorAll("#users-table [data-action]").forEach((button) => {
     button.addEventListener("click", async () => {
       const { action, id, status: userStatus, email } = button.dataset;
-      if (action === "add30" || action === "add60") {
-        const addQuota = action === "add30" ? 30 : 60;
+
+      if (action === "addQuota") {
+        const input = document.querySelector(`[data-quota-for="${id}"]`);
+        const addQuota = Number(input?.value);
+        if (!addQuota || addQuota <= 0) {
+          setStatus("请输入要增加的分钟数");
+          input?.focus();
+          return;
+        }
+
         const payload = await apiPatch(`/api/admin/users/${id}`, { addQuota });
         if (!payload.success) {
           setStatus(payload.error || "操作失败");
           return;
         }
+
+        clearStatus();
         showToast(`已增加 ${addQuota} 分钟`);
+        if (input) input.value = "";
         await loadUsers();
         return;
       }
+
+      if (action === "resetPassword") {
+        openResetPasswordDialog(id, email);
+        return;
+      }
+
       if (action === "toggle") {
         const nextStatus = userStatus === "active" ? "disabled" : "active";
         const payload = await apiPatch(`/api/admin/users/${id}`, { status: nextStatus });
@@ -121,9 +170,11 @@ function renderUsers(users) {
           setStatus(payload.error || "操作失败");
           return;
         }
+        clearStatus();
         await loadUsers();
         return;
       }
+
       if (action === "records") {
         switchTab("records");
         document.getElementById("filter-email").value = email;
@@ -133,31 +184,44 @@ function renderUsers(users) {
   });
 }
 
+function openResetPasswordDialog(userId, email) {
+  resetPasswordUserId = userId;
+  resetPasswordEmail.textContent = `为用户 ${email} 设置新密码`;
+  resetPasswordInput.value = "";
+  resetPasswordDialog.showModal();
+  resetPasswordInput.focus();
+}
+
+function closeResetPasswordDialog() {
+  resetPasswordUserId = null;
+  resetPasswordDialog.close();
+}
+
 function renderRecords(records) {
   document.getElementById("records-table").innerHTML = records.length
-    ? `<table class="data-table">
+    ? `<table class="data-table data-table--admin">
         <thead>
           <tr>
-            <th>时间</th>
-            <th>用户</th>
-            <th>平台</th>
-            <th>标题</th>
-            <th>时长</th>
-            <th>扣费</th>
-            <th>状态</th>
+            <th class="col-time">时间</th>
+            <th class="col-user">用户</th>
+            <th class="col-platform">平台</th>
+            <th class="col-title">标题</th>
+            <th class="col-charge">时长</th>
+            <th class="col-charge">扣费</th>
+            <th class="col-status">状态</th>
           </tr>
         </thead>
         <tbody>
           ${records
             .map(
               (item) => `<tr>
-                <td>${formatDate(item.created_at)}</td>
-                <td>${item.email}</td>
-                <td>${PLATFORM_LABELS[item.platform] || item.platform || "-"}</td>
-                <td>${item.title || "-"}</td>
-                <td>${item.duration_seconds ? Math.ceil(item.duration_seconds / 60) + " 分" : "-"}</td>
-                <td>${item.minutes_charged || 0}</td>
-                <td>${item.status === "success" ? "成功" : "失败"}</td>
+                <td class="col-time">${formatDateCompact(item.created_at)}</td>
+                <td class="col-user">${escapeHtml(item.email)}</td>
+                <td class="col-platform">${escapeHtml(PLATFORM_LABELS[item.platform] || item.platform || "-")}</td>
+                <td class="col-title">${escapeHtml(item.title || "-")}</td>
+                <td class="col-charge">${item.duration_seconds ? Math.ceil(item.duration_seconds / 60) + " 分" : "-"}</td>
+                <td class="col-charge">${item.minutes_charged || 0} 分</td>
+                <td class="col-status">${renderStatusBadge(item.status)}</td>
               </tr>`
             )
             .join("")}
@@ -240,11 +304,45 @@ document.getElementById("create-user-form").addEventListener("submit", async (ev
     return;
   }
 
+  clearStatus();
   showToast("账号创建成功");
   document.getElementById("create-user-form").reset();
   document.getElementById("create-quota").value = "30";
   await loadUsers();
   switchTab("users");
+});
+
+resetPasswordForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!resetPasswordUserId) return;
+
+  const newPassword = resetPasswordInput.value.trim();
+  if (newPassword.length < 6) {
+    setStatus("密码至少 6 位");
+    return;
+  }
+
+  const payload = await apiPatch(`/api/admin/users/${resetPasswordUserId}`, {
+    resetPassword: newPassword,
+  });
+
+  if (!payload.success) {
+    setStatus(payload.error || "重置失败");
+    return;
+  }
+
+  clearStatus();
+  closeResetPasswordDialog();
+  showToast("密码已重置，用户需重新登录");
+});
+
+document.getElementById("reset-password-cancel").addEventListener("click", () => {
+  closeResetPasswordDialog();
+});
+
+resetPasswordDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeResetPasswordDialog();
 });
 
 init();

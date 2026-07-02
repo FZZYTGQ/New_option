@@ -64,6 +64,19 @@
     </section>
   </div>
 
+  <dialog id="reset-password-dialog" class="dialog">
+    <form id="reset-password-form" class="dialog__form">
+      <h2 class="dialog__title">重置密码</h2>
+      <p class="dialog__hint" id="reset-password-email"></p>
+      <label class="label" for="reset-password-input">新密码</label>
+      <input id="reset-password-input" class="input" type="text" minlength="6" required>
+      <div class="dialog__actions">
+        <button type="button" class="btn btn--secondary" id="reset-password-cancel">取消</button>
+        <button type="submit" class="btn btn--primary">确认重置</button>
+      </div>
+    </form>
+  </dialog>
+
   <script type="module" src="admin.js"></script>
 </body>
 </html>
