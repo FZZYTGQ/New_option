@@ -36,7 +36,7 @@ body {
 }
 
 .hero__logo {
-  width: min(120px, 28vw);
+  width: min(180px, 28vw);
   height: auto;
 }
 
