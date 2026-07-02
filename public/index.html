@@ -3,64 +3,57 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="小赵学姐的黑科技，敬请期待">
-  <title>小赵学姐的黑科技，敬请期待</title>
-  <style>
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html,
-    body {
-      height: 100%;
-    }
-
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      background: #ffffff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-        "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB",
-        "Microsoft YaHei", sans-serif;
-    }
-
-    main {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: clamp(12px, 3vw, 20px);
-      width: 100%;
-      max-width: 420px;
-      padding: clamp(16px, 5vw, 32px);
-      text-align: center;
-    }
-
-    img {
-      display: block;
-      width: min(240px, 55vw);
-      height: auto;
-    }
-
-    p {
-      color: #666666;
-      font-size: clamp(13px, 3.2vw, 16px);
-      font-weight: 400;
-      line-height: 1.6;
-      letter-spacing: 0.02em;
-    }
-  </style>
+  <meta name="description" content="小赵学姐的黑科技 - 视频口播稿提取与 AI 总结">
+  <title>小赵学姐的黑科技</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main>
-    <img src="pic2.png" alt="小赵学姐的黑科技">
-    <p>小赵学姐的黑科技，敬请期待</p>
-  </main>
+  <div class="page">
+    <header class="hero">
+      <img src="pic2.png" alt="小赵学姐的黑科技" class="hero__logo">
+      <h1 class="hero__title">小赵学姐的黑科技</h1>
+      <p class="hero__subtitle">粘贴分享内容，提取口播稿并生成 AI 总结</p>
+    </header>
+
+    <section class="card input-card">
+      <label class="label" for="share-input">分享内容</label>
+      <textarea
+        id="share-input"
+        class="textarea"
+        rows="5"
+        placeholder="直接粘贴抖音 / B站 / 小红书的分享文案，无需手动提取链接…"
+      ></textarea>
+      <p class="hint">支持从整段分享文字中自动识别视频链接，可包含标题、口令等杂项文字。</p>
+      <button id="extract-btn" class="btn btn--primary" type="button">开始提取</button>
+    </section>
+
+    <div id="status" class="status" hidden></div>
+
+    <section id="result" class="result" hidden>
+      <div class="result__meta">
+        <div>
+          <span id="platform-badge" class="badge"></span>
+          <h2 id="result-title" class="result__title"></h2>
+          <p id="result-author" class="result__author"></p>
+        </div>
+        <div class="result__actions">
+          <button id="download-btn" class="btn btn--ghost" type="button">下载 Markdown</button>
+          <button id="share-btn" class="btn btn--ghost" type="button">一键分享</button>
+        </div>
+      </div>
+
+      <article class="card">
+        <h3 class="section-title">口播逐字稿</h3>
+        <div id="transcript" class="content-box"></div>
+      </article>
+
+      <article class="card">
+        <h3 class="section-title">AI 总结</h3>
+        <div id="summary" class="content-box content-box--summary"></div>
+      </article>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
