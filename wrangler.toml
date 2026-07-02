@@ -10,3 +10,10 @@ fallthrough = true
 [assets]
 directory = "./public"
 binding = "ASSETS"
+
+# 分享链接存储（部署前运行: npx wrangler kv namespace create SHARES）
+# 将返回的 id 填入下方，preview 环境再运行: npx wrangler kv namespace create SHARES --preview
+[[kv_namespaces]]
+binding = "SHARES"
+id = "REPLACE_WITH_PRODUCTION_KV_ID"
+preview_id = "REPLACE_WITH_PREVIEW_KV_ID"

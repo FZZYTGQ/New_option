@@ -1,3 +1,6 @@
+import { renderMarkdown, buildMarkdown } from "./markdown.js";
+import { showToast } from "./toast.js";
+
 const PLATFORM_LABELS = {
   bilibili: "B站",
   douyin: "抖音",
@@ -9,13 +12,20 @@ const elements = {
   extractBtn: document.getElementById("extract-btn"),
   status: document.getElementById("status"),
   result: document.getElementById("result"),
-  platformBadge: document.getElementById("platform-badge"),
-  resultTitle: document.getElementById("result-title"),
-  resultAuthor: document.getElementById("result-author"),
+  metaTitle: document.getElementById("meta-title"),
+  metaAuthor: document.getElementById("meta-author"),
+  metaLink: document.getElementById("meta-link"),
+  metaPlatform: document.getElementById("meta-platform"),
   transcript: document.getElementById("transcript"),
   summary: document.getElementById("summary"),
   downloadBtn: document.getElementById("download-btn"),
+  copyBtn: document.getElementById("copy-btn"),
   shareBtn: document.getElementById("share-btn"),
+  tabs: document.querySelectorAll(".tab"),
+  panels: {
+    transcript: document.getElementById("panel-transcript"),
+    summary: document.getElementById("panel-summary"),
+  },
 };
 
 let currentResult = null;
@@ -31,30 +41,40 @@ function clearStatus() {
   elements.status.textContent = "";
 }
 
-function buildMarkdown(data) {
-  const lines = [
-    `# ${data.title || "视频内容"}`,
-    "",
-    `- 平台：${PLATFORM_LABELS[data.platform] || data.platform}`,
-    `- 链接：${data.videoUrl}`,
-  ];
+function switchTab(name) {
+  elements.tabs.forEach((tab) => {
+    const active = tab.dataset.tab === name;
+    tab.classList.toggle("tab--active", active);
+    tab.setAttribute("aria-selected", active ? "true" : "false");
+  });
 
-  if (data.author) {
-    lines.push(`- 作者：${data.author}`);
-  }
-
-  lines.push("", "## 口播逐字稿", "", data.transcript, "", "## AI 总结", "", data.summary);
-  return lines.join("\n");
+  Object.entries(elements.panels).forEach(([key, panel]) => {
+    const active = key === name;
+    panel.hidden = !active;
+    panel.classList.toggle("tab-panel--active", active);
+  });
 }
 
 function renderResult(data) {
   currentResult = data;
   elements.result.hidden = false;
-  elements.platformBadge.textContent = PLATFORM_LABELS[data.platform] || data.platform;
-  elements.resultTitle.textContent = data.title || "未获取到标题";
-  elements.resultAuthor.textContent = data.author ? `作者：${data.author}` : "";
+
+  elements.metaTitle.textContent = data.title || "未获取到标题";
+  elements.metaLink.textContent = data.videoUrl;
+  elements.metaLink.href = data.videoUrl;
+  elements.metaPlatform.textContent = PLATFORM_LABELS[data.platform] || data.platform || "";
+
+  if (data.author) {
+    elements.metaAuthor.hidden = false;
+    elements.metaAuthor.textContent = `作者：${data.author}`;
+  } else {
+    elements.metaAuthor.hidden = true;
+    elements.metaAuthor.textContent = "";
+  }
+
   elements.transcript.textContent = data.transcript;
-  elements.summary.textContent = data.summary;
+  renderMarkdown(elements.summary, data.summary);
+  switchTab("transcript");
 }
 
 async function extractContent() {
@@ -92,7 +112,7 @@ async function extractContent() {
 function downloadMarkdown() {
   if (!currentResult) return;
 
-  const markdown = buildMarkdown(currentResult);
+  const markdown = buildMarkdown(currentResult, PLATFORM_LABELS);
   const safeName = (currentResult.title || "视频内容")
     .replace(/[\\/:*?"<>|]/g, "_")
     .slice(0, 40);
@@ -105,13 +125,27 @@ function downloadMarkdown() {
   URL.revokeObjectURL(url);
 }
 
-async function shareResult() {
+async function copyMarkdown() {
   if (!currentResult) return;
 
-  const markdown = buildMarkdown(currentResult);
+  try {
+    const markdown = buildMarkdown(currentResult, PLATFORM_LABELS);
+    await navigator.clipboard.writeText(markdown);
+    showToast("已复制到剪贴板");
+  } catch {
+    showToast("复制失败，请手动选择内容复制");
+  }
+}
+
+async function shareResult() {
+  if (!currentResult?.shareUrl) {
+    setStatus("分享链接生成失败，请重新提取", "error");
+    return;
+  }
+
   const shareData = {
-    title: currentResult.title || "视频口播稿与总结",
-    text: markdown,
+    title: currentResult.title || "视频内容分享",
+    url: currentResult.shareUrl,
   };
 
   if (navigator.share) {
@@ -124,18 +158,19 @@ async function shareResult() {
   }
 
   try {
-    await navigator.clipboard.writeText(markdown);
-    setStatus("当前设备不支持系统分享，内容已复制到剪贴板", "loading");
+    await navigator.clipboard.writeText(currentResult.shareUrl);
+    setStatus("分享链接已复制到剪贴板", "loading");
     window.setTimeout(clearStatus, 2500);
   } catch {
-    setStatus("分享失败，请使用下载 Markdown", "error");
+    setStatus("分享失败，请手动复制链接", "error");
   }
 }
 
 elements.extractBtn.addEventListener("click", extractContent);
 elements.downloadBtn.addEventListener("click", downloadMarkdown);
+elements.copyBtn.addEventListener("click", copyMarkdown);
 elements.shareBtn.addEventListener("click", shareResult);
 
-if (!navigator.share) {
-  elements.shareBtn.textContent = "复制全部";
-}
+elements.tabs.forEach((tab) => {
+  tab.addEventListener("click", () => switchTab(tab.dataset.tab));
+});

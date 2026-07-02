@@ -1,6 +1,8 @@
 import { extractVideoUrl } from "./extractUrl.js";
 import { fetchSubtitle } from "./bibigpt.js";
 import { summarizeTranscript } from "./deepseek.js";
+import { saveShare, getShare } from "./share.js";
+import { renderSharePage } from "./shareTemplate.js";
 import playbook from "./summarize_playbook.md";
 
 const JSON_HEADERS = {
@@ -56,19 +58,30 @@ async function handleExtract(request, env) {
       playbook,
     });
 
+    const data = {
+      platform: extracted.platform,
+      videoUrl: extracted.url,
+      title: subtitle.title,
+      author: subtitle.author,
+      transcript: subtitle.transcript,
+      summary,
+      sourceUrl: subtitle.sourceUrl,
+      duration: subtitle.duration,
+      costDuration: subtitle.costDuration,
+      remainingTime: subtitle.remainingTime,
+    };
+
+    const shareId = await saveShare(env, data);
+    const shareUrl = shareId
+      ? new URL(`/s/${shareId}`, request.url).toString()
+      : null;
+
     return jsonResponse({
       success: true,
       data: {
-        platform: extracted.platform,
-        videoUrl: extracted.url,
-        title: subtitle.title,
-        author: subtitle.author,
-        transcript: subtitle.transcript,
-        summary,
-        sourceUrl: subtitle.sourceUrl,
-        duration: subtitle.duration,
-        costDuration: subtitle.costDuration,
-        remainingTime: subtitle.remainingTime,
+        ...data,
+        shareId,
+        shareUrl,
       },
     });
   } catch (error) {
@@ -83,6 +96,20 @@ async function handleExtract(request, env) {
   }
 }
 
+async function handleSharePage(request, env, shareId) {
+  const data = await getShare(env, shareId);
+  if (!data) {
+    return new Response("分享链接不存在或已过期", {
+      status: 404,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
+  return new Response(renderSharePage(data, shareId), {
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -92,6 +119,11 @@ export default {
         return jsonResponse({ success: false, error: "仅支持 POST 请求" }, 405);
       }
       return handleExtract(request, env);
+    }
+
+    const shareMatch = url.pathname.match(/^\/s\/([a-zA-Z0-9]+)$/);
+    if (shareMatch) {
+      return handleSharePage(request, env, shareMatch[1]);
     }
 
     return env.ASSETS.fetch(request);

@@ -8,7 +8,7 @@
 - BibiGPT `getSubtitle` 提取口播逐字稿
 - DeepSeek 按 `summarize_playbook.md` 规范生成总结
 - 下载 Markdown 文件
-- 一键分享（Web Share API，不支持时回退为复制）
+- 一键分享（生成可访问链接，30 天有效）
 
 ## 项目结构
 
@@ -62,11 +62,26 @@ npx wrangler secret put BIBIGPT_API_TOKEN
 npx wrangler secret put DEEPSEEK_API_KEY
 ```
 
-2. 部署
+2. 创建 KV 命名空间（分享链接存储）：
+
+```bash
+npx wrangler kv namespace create SHARES
+npx wrangler kv namespace create SHARES --preview
+```
+
+将返回的 `id` 分别填入 `wrangler.toml` 的 `id` 和 `preview_id`。
+
+3. 部署
 
 ```bash
 npm run deploy
 ```
+
+## 分享链接
+
+提取成功后会自动生成分享链接，格式为 `/s/{id}`，内容保存在 Cloudflare KV 中，默认 **30 天**后过期。
+
+一键分享会将该链接通过系统分享菜单或复制到剪贴板，他人打开链接即可查看内容转写和智能总结。
 
 ## API
 
@@ -91,7 +106,9 @@ npm run deploy
     "title": "视频标题",
     "author": "作者",
     "transcript": "口播逐字稿...",
-    "summary": "AI 总结..."
+    "summary": "AI 总结...",
+    "shareId": "abc123",
+    "shareUrl": "https://your-domain/s/abc123"
   }
 }
 ```
