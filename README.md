@@ -4,27 +4,13 @@
 
 ## 功能
 
-- 从整段分享文案中自动识别视频链接（可含标题、口令等杂项文字）
+- 管理员后台开号，邮箱 + 密码登录
+- 每账号默认 30 分钟额度，按视频时长扣减
 - BibiGPT `getSubtitle` 提取口播逐字稿
 - DeepSeek 按 `summarize_playbook.md` 规范生成总结
-- 下载 Markdown 文件
-- 一键分享（生成可访问链接，30 天有效）
-
-## 项目结构
-
-```
-.
-├── public/                 # 前端页面
-├── src/                    # Cloudflare Worker 后端
-│   ├── index.js
-│   ├── extractUrl.js
-│   ├── bibigpt.js
-│   ├── deepseek.js
-│   └── summarize_playbook.md
-├── summarize_playbook.md   # 总结规范源文件
-├── wrangler.toml
-└── package.json
-```
+- 历史记录回看
+- 管理后台：创建用户、加额度、查看使用记录
+- 下载 Markdown、复制内容
 
 ## 本地开发
 
@@ -34,87 +20,93 @@
 npm install
 ```
 
-2. 配置密钥（复制示例后填入真实值）
+2. 配置 `.dev.vars`
 
 ```bash
 cp .dev.vars.example .dev.vars
 ```
 
-`.dev.vars` 需要包含：
+需要填写：
 
 ```
-BIBIGPT_API_TOKEN=你的bibigpt_token
-DEEPSEEK_API_KEY=你的deepseek_key
+BIBIGPT_API_TOKEN=...
+DEEPSEEK_API_KEY=...
+ADMIN_EMAIL=你的管理员邮箱
+ADMIN_PASSWORD=你的管理员密码
 ```
 
-3. 启动本地预览
+首次启动时，如果数据库里还没有该邮箱，会自动创建 **admin** 账号。
+
+3. 初始化本地数据库
+
+```bash
+npm run db:migrate:local
+```
+
+4. 启动
 
 ```bash
 npm run dev
 ```
 
+访问 `http://localhost:8787/login.html` 登录。
+
 ## 部署到 Cloudflare
 
-1. 在 Cloudflare 项目中配置 Secrets（不要写进代码或 Git）：
+### 1. 创建 D1 数据库
+
+```bash
+npx wrangler d1 create new-option-db
+```
+
+把返回的 `database_id` 填进 `wrangler.toml` 的 `[[d1_databases]]` 配置，替换 `local-dev-placeholder`。
+
+### 2. 应用远程数据库迁移
+
+```bash
+npm run db:migrate:remote
+```
+
+### 3. 配置 Secrets
 
 ```bash
 npx wrangler secret put BIBIGPT_API_TOKEN
 npx wrangler secret put DEEPSEEK_API_KEY
+npx wrangler secret put ADMIN_EMAIL
+npx wrangler secret put ADMIN_PASSWORD
 ```
 
-2. 创建 KV 命名空间（分享链接存储）：
-
-```bash
-npx wrangler kv namespace create SHARES
-npx wrangler kv namespace create SHARES --preview
-```
-
-将返回的 `id` 分别填入 `wrangler.toml` 的 `id` 和 `preview_id`。
-
-3. 部署
+### 4. 部署
 
 ```bash
 npm run deploy
 ```
 
-## 分享链接
+如果使用 Cloudflare Git 自动部署，建议在构建命令中加入：
 
-提取成功后会自动生成分享链接，格式为 `/s/{id}`，内容保存在 Cloudflare KV 中，默认 **30 天**后过期。
-
-一键分享会将该链接通过系统分享菜单或复制到剪贴板，他人打开链接即可查看内容转写和智能总结。
-
-## API
-
-### `POST /api/extract`
-
-请求体：
-
-```json
-{
-  "input": "整段分享文案或链接"
-}
+```bash
+npm install && npm run db:migrate:remote && npm run deploy
 ```
 
-成功响应：
+## 页面
 
-```json
-{
-  "success": true,
-  "data": {
-    "platform": "douyin",
-    "videoUrl": "https://...",
-    "title": "视频标题",
-    "author": "作者",
-    "transcript": "口播逐字稿...",
-    "summary": "AI 总结...",
-    "shareId": "abc123",
-    "shareUrl": "https://your-domain/s/abc123"
-  }
-}
-```
+| 路径 | 说明 |
+|------|------|
+| `/login.html` | 登录 |
+| `/` | 提取首页（需登录） |
+| `/history.html` | 历史记录 |
+| `/admin.html` | 管理后台（仅 admin） |
+
+## 业务规则
+
+- 新用户默认额度：30 分钟
+- 扣费：`ceil(视频秒数 / 60)`，最少 1 分钟
+- 超过 30 分钟视频：拒绝，不扣费
+- 转写成功但总结失败：仍扣费，历史里保留转写
+- 额度用完提示：`额度用完了，请联系小赵学姐增加额度`
 
 ## 技术栈
 
-- Cloudflare Workers + Static Assets
+- Cloudflare Workers + D1 + Static Assets
 - BibiGPT API（字幕/转写）
 - DeepSeek API（总结）

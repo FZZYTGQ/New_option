@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理后台 - 小赵学姐的黑科技</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page page--wide">
+    <header class="topbar">
+      <a class="topbar__link" href="/">← 返回首页</a>
+      <h1 class="topbar__title">管理后台</h1>
+    </header>
+
+    <div class="tabs admin-tabs" role="tablist">
+      <button class="tab tab--active" type="button" data-tab="overview">概览</button>
+      <button class="tab" type="button" data-tab="users">用户管理</button>
+      <button class="tab" type="button" data-tab="records">使用记录</button>
+      <button class="tab" type="button" data-tab="create">创建用户</button>
+    </div>
+
+    <div id="status" class="status" hidden></div>
+
+    <section id="panel-overview" class="admin-panel admin-panel--active">
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="card">
+        <h2 class="section-title">最近记录</h2>
+        <div id="recent-records" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section id="panel-users" class="admin-panel" hidden>
+      <div class="card">
+        <div id="users-table" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section id="panel-records" class="admin-panel" hidden>
+      <div class="card">
+        <div class="records-filter">
+          <input id="filter-email" class="input" type="email" placeholder="按邮箱筛选（可选）">
+          <button id="filter-btn" class="btn btn--secondary" type="button">筛选</button>
+        </div>
+        <div id="records-table" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section id="panel-create" class="admin-panel" hidden>
+      <div class="card input-card">
+        <form id="create-user-form" class="form">
+          <label class="label" for="create-email">邮箱</label>
+          <input id="create-email" class="input" type="email" required>
+
+          <label class="label" for="create-password">初始密码</label>
+          <input id="create-password" class="input" type="text" minlength="6" required>
+
+          <label class="label" for="create-quota">初始额度（分钟）</label>
+          <input id="create-quota" class="input" type="number" min="1" value="30" required>
+
+          <button class="btn btn--primary" type="submit">创建账号</button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>

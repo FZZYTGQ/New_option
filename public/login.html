@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - 小赵学姐的黑科技</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page page--narrow">
+    <header class="hero">
+      <img src="pic3.png" alt="小赵学姐的黑科技" class="hero__logo">
+      <h1 class="hero__title">小赵学姐的黑科技</h1>
+    </header>
+
+    <section class="card input-card">
+      <form id="login-form" class="form">
+        <label class="label" for="email">邮箱</label>
+        <input id="email" class="input" type="email" autocomplete="username" required>
+
+        <label class="label" for="password">密码</label>
+        <input id="password" class="input" type="password" autocomplete="current-password" required>
+
+        <button class="btn btn--primary" type="submit">登录</button>
+      </form>
+      <p class="hint">暂无注册入口，账号由管理员开通。</p>
+      <div id="status" class="status" hidden></div>
+    </section>
+  </div>
+
+  <script type="module" src="login.js"></script>
+</body>
+</html>

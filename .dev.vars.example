@@ -1,2 +1,4 @@
 BIBIGPT_API_TOKEN=your_bibigpt_token_here
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
+ADMIN_EMAIL=your_admin_email_here
+ADMIN_PASSWORD=your_admin_password_here

@@ -1,3 +1,4 @@
+import { apiPost, requireAuth } from "./api.js";
 import { renderMarkdown, buildMarkdown } from "./markdown.js";
 import { showToast } from "./toast.js";
 
@@ -21,7 +22,9 @@ const elements = {
   downloadBtn: document.getElementById("download-btn"),
   copyBtn: document.getElementById("copy-btn"),
   shareBtn: document.getElementById("share-btn"),
-  tabs: document.querySelectorAll(".tab"),
+  adminLink: document.getElementById("admin-link"),
+  logoutBtn: document.getElementById("logout-btn"),
+  tabs: document.querySelectorAll(".result-card .tab"),
   panels: {
     transcript: document.getElementById("panel-transcript"),
     summary: document.getElementById("panel-summary"),
@@ -72,8 +75,9 @@ function renderResult(data) {
     elements.metaAuthor.textContent = "";
   }
 
-  elements.transcript.textContent = data.transcript;
-  renderMarkdown(elements.summary, data.summary);
+  elements.transcript.textContent = data.transcript || "";
+  renderMarkdown(elements.summary, data.summary || "暂无总结内容");
+  elements.shareBtn.hidden = !data.shareUrl;
   switchTab("transcript");
 }
 
@@ -91,12 +95,23 @@ async function extractContent() {
   try {
     const response = await fetch("/api/extract", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ input }),
     });
 
     const payload = await response.json();
     if (!response.ok || !payload.success) {
+      if (payload.data?.transcript) {
+        renderResult({
+          platform: payload.data.platform,
+          videoUrl: payload.data.videoUrl,
+          title: payload.data.title,
+          author: payload.data.author,
+          transcript: payload.data.transcript,
+          summary: "",
+        });
+      }
       throw new Error(payload.error || "提取失败");
     }
 
@@ -159,10 +174,18 @@ async function shareResult() {
 
   try {
     await navigator.clipboard.writeText(currentResult.shareUrl);
-    setStatus("分享链接已复制到剪贴板", "loading");
-    window.setTimeout(clearStatus, 2500);
+    showToast("分享链接已复制到剪贴板");
   } catch {
     setStatus("分享失败，请手动复制链接", "error");
+  }
+}
+
+async function init() {
+  const user = await requireAuth();
+  if (!user) return;
+
+  if (user.role === "admin") {
+    elements.adminLink.hidden = false;
   }
 }
 
@@ -170,7 +193,13 @@ elements.extractBtn.addEventListener("click", extractContent);
 elements.downloadBtn.addEventListener("click", downloadMarkdown);
 elements.copyBtn.addEventListener("click", copyMarkdown);
 elements.shareBtn.addEventListener("click", shareResult);
+elements.logoutBtn.addEventListener("click", async () => {
+  await apiPost("/api/auth/logout", {});
+  window.location.href = "/login.html";
+});
 
 elements.tabs.forEach((tab) => {
   tab.addEventListener("click", () => switchTab(tab.dataset.tab));
 });
+
+init();

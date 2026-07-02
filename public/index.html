@@ -10,6 +10,15 @@
 </head>
 <body>
   <div class="page">
+    <header class="topbar topbar--home">
+      <div class="topbar__spacer"></div>
+      <nav class="topbar__nav">
+        <a class="topbar__link" href="/history.html">历史记录</a>
+        <a id="admin-link" class="topbar__link" href="/admin.html" hidden>管理后台</a>
+        <button id="logout-btn" class="topbar__button" type="button">退出</button>
+      </nav>
+    </header>
+
     <header class="hero">
       <img src="pic3.png" alt="小赵学姐的黑科技" class="hero__logo">
       <h1 class="hero__title">小赵学姐的黑科技</h1>
@@ -40,7 +49,7 @@
           <div class="result__actions">
             <button id="download-btn" class="btn btn--secondary" type="button">下载</button>
             <button id="copy-btn" class="btn btn--secondary" type="button">复制</button>
-            <button id="share-btn" class="btn btn--secondary" type="button">一键分享</button>
+            <button id="share-btn" class="btn btn--secondary" type="button" hidden>一键分享</button>
           </div>
         </div>
 

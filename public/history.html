@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的历史记录 - 小赵学姐的黑科技</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <a class="topbar__link" href="/">← 返回首页</a>
+      <h1 class="topbar__title">我的历史记录</h1>
+    </header>
+
+    <div id="status" class="status" hidden></div>
+    <section id="history-list" class="history-list"></section>
+
+    <section id="history-detail" class="card result-card" hidden>
+      <div class="result__toolbar">
+        <div class="tabs" role="tablist">
+          <button class="tab tab--active" type="button" data-tab="transcript" role="tab">内容转写</button>
+          <button class="tab" type="button" data-tab="summary" role="tab">智能总结</button>
+        </div>
+        <div class="result__actions">
+          <button id="download-btn" class="btn btn--secondary" type="button">下载</button>
+          <button id="copy-btn" class="btn btn--secondary" type="button">复制</button>
+        </div>
+      </div>
+
+      <div id="panel-transcript" class="tab-panel tab-panel--active" role="tabpanel">
+        <div class="video-meta">
+          <p class="video-meta__title"><strong id="meta-title"></strong></p>
+          <p id="meta-author" class="video-meta__item" hidden></p>
+          <p class="video-meta__item">链接：<a id="meta-link" href="#" target="_blank" rel="noopener noreferrer"></a></p>
+          <p class="video-meta__item">平台：<span id="meta-platform"></span></p>
+        </div>
+        <div id="transcript" class="content-box content-box--transcript"></div>
+      </div>
+
+      <div id="panel-summary" class="tab-panel" role="tabpanel" hidden>
+        <div id="summary" class="content-box content-box--summary markdown-body"></div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="history-page.js"></script>
+</body>
+</html>

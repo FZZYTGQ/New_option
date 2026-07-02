@@ -2,10 +2,12 @@
   "name": "new-option",
   "version": "1.0.0",
   "private": true,
-  "description": "敬请期待 landing page, deployed on Cloudflare Workers",
+  "description": "小赵学姐的黑科技 - 视频口播稿提取与 AI 总结",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply new-option-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply new-option-db --remote"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

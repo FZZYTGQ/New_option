@@ -10,3 +10,9 @@ fallthrough = true
 [assets]
 directory = "./public"
 binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "new-option-db"
+database_id = "local-dev-placeholder"
+migrations_dir = "migrations"
