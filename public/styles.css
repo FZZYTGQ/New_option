@@ -500,6 +500,33 @@ body {
   box-shadow: none;
 }
 
+.history-result__toolbar {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.history-result__toolbar .tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.history-result__toolbar .result__actions {
+  flex: 0 0 auto;
+}
+
+.history-result__toolbar .tab {
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+.history-result__toolbar .btn--secondary {
+  padding: 7px 14px;
+  font-size: 13px;
+}
+
 .history-accordion__loading,
 .history-accordion__error {
   padding: 20px 16px;

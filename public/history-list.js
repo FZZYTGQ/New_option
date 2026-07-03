@@ -95,7 +95,7 @@ function renderAccordionDetail(accordion, record) {
 
   body.innerHTML = `
     <div class="history-accordion__content card result-card">
-      <div class="result__toolbar">
+      <div class="result__toolbar history-result__toolbar">
         <div class="tabs" role="tablist">
           <button class="tab tab--active" type="button" data-tab="transcript" role="tab">内容转写</button>
           <button class="tab" type="button" data-tab="summary" role="tab">智能总结</button>
@@ -162,9 +162,7 @@ function renderAccordionItem(item) {
           <span class="history-accordion__chevron" aria-hidden="true">›</span>
         </div>
       </button>
-      <div class="history-accordion__body" hidden>
-        <div class="history-accordion__loading">加载中…</div>
-      </div>
+      <div class="history-accordion__body" hidden></div>
     </article>`;
 }
 
@@ -196,6 +194,39 @@ export function createHistoryListController({
     expandedId = null;
   }
 
+  async function loadAccordionDetail(accordion, id, { showLoading = false } = {}) {
+    const listItem = listCache.get(id);
+
+    if (listItem && isPending(listItem.status)) {
+      renderAccordionDetail(accordion, listItem);
+      return;
+    }
+
+    if (detailCache.has(id)) {
+      renderAccordionDetail(accordion, detailCache.get(id));
+      return;
+    }
+
+    const body = accordion.querySelector(".history-accordion__body");
+    const shouldShowLoading = showLoading && !(listItem && listItem.status === "success");
+    if (shouldShowLoading) {
+      body.innerHTML = `<div class="history-accordion__loading">加载中…</div>`;
+    }
+
+    const payload = await apiGet(`/api/history/${id}`);
+    if (!accordion.isConnected || accordion.dataset.id !== id) {
+      return;
+    }
+
+    if (!payload.success) {
+      body.innerHTML = `<div class="history-accordion__error">${escapeHtml(payload.error || "加载失败")}</div>`;
+      return;
+    }
+
+    detailCache.set(id, payload.data);
+    renderAccordionDetail(accordion, payload.data);
+  }
+
   async function toggleAccordion(id) {
     const accordion = container.querySelector(`.history-accordion[data-id="${id}"]`);
     if (!accordion) return;
@@ -215,29 +246,7 @@ export function createHistoryListController({
 
     expandedId = id;
     setAccordionExpanded(accordion, true);
-
-    const listItem = listCache.get(id);
-    if (listItem && isPending(listItem.status)) {
-      renderAccordionDetail(accordion, listItem);
-      return;
-    }
-
-    const body = accordion.querySelector(".history-accordion__body");
-    if (detailCache.has(id)) {
-      renderAccordionDetail(accordion, detailCache.get(id));
-      return;
-    }
-
-    body.innerHTML = `<div class="history-accordion__loading">加载中…</div>`;
-
-    const payload = await apiGet(`/api/history/${id}`);
-    if (!payload.success) {
-      body.innerHTML = `<div class="history-accordion__error">${escapeHtml(payload.error || "加载失败")}</div>`;
-      return;
-    }
-
-    detailCache.set(id, payload.data);
-    renderAccordionDetail(accordion, payload.data);
+    await loadAccordionDetail(accordion, id, { showLoading: true });
   }
 
   function bindHeaders() {
@@ -270,13 +279,7 @@ export function createHistoryListController({
       if (accordion) {
         expandedId = openId;
         setAccordionExpanded(accordion, true);
-        const cached = detailCache.get(openId);
-        const listItem = listCache.get(openId);
-        if (cached && !isPending(cached.status)) {
-          renderAccordionDetail(accordion, cached);
-        } else if (listItem && isPending(listItem.status)) {
-          renderAccordionDetail(accordion, listItem);
-        }
+        void loadAccordionDetail(accordion, openId);
       } else {
         expandedId = null;
       }
