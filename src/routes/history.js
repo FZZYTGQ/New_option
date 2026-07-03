@@ -1,5 +1,6 @@
 import { jsonResponse } from "../http.js";
 import { requireUser } from "../middleware.js";
+import { expireStuckJobs } from "../db.js";
 
 export async function handleHistoryList(request, env) {
   const auth = await requireUser(request, env);
@@ -7,14 +8,20 @@ export async function handleHistoryList(request, env) {
     return auth.error;
   }
 
+  await expireStuckJobs(env, auth.user.id);
+
+  const url = new URL(request.url);
+  const limitParam = url.searchParams.get("limit");
+  const limit = limitParam ? Math.min(Number(limitParam) || 100, 100) : 100;
+
   const rows = await env.DB.prepare(
-    `SELECT id, platform, video_url, title, author, duration_seconds, minutes_charged, status, error_message, created_at
+    `SELECT id, platform, video_url, title, author, duration_seconds, minutes_charged, status, error_message, created_at, updated_at
      FROM history
      WHERE user_id = ?
      ORDER BY created_at DESC
-     LIMIT 100`
+     LIMIT ?`
   )
-    .bind(auth.user.id)
+    .bind(auth.user.id, limit)
     .all();
 
   return jsonResponse({
@@ -31,7 +38,7 @@ export async function handleHistoryDetail(request, env, historyId) {
 
   const row = await env.DB.prepare(
     `SELECT id, platform, video_url, title, author, duration_seconds, minutes_charged,
-            transcript, summary, status, error_message, created_at
+            transcript, summary, status, error_message, created_at, updated_at
      FROM history
      WHERE id = ? AND user_id = ?`
   )

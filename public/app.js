@@ -1,37 +1,17 @@
-import { apiPost, requireAuth } from "./api.js";
-import { renderMarkdown, buildMarkdown } from "./markdown.js";
+import { apiGet, apiPost, requireAuth } from "./api.js";
+import { createHistoryListController } from "./history-list.js";
 import { showToast } from "./toast.js";
-
-const PLATFORM_LABELS = {
-  bilibili: "B站",
-  douyin: "抖音",
-  xiaohongshu: "小红书",
-};
 
 const elements = {
   input: document.getElementById("share-input"),
   extractBtn: document.getElementById("extract-btn"),
   status: document.getElementById("status"),
-  result: document.getElementById("result"),
-  metaTitle: document.getElementById("meta-title"),
-  metaAuthor: document.getElementById("meta-author"),
-  metaLink: document.getElementById("meta-link"),
-  metaPlatform: document.getElementById("meta-platform"),
-  transcript: document.getElementById("transcript"),
-  summary: document.getElementById("summary"),
-  downloadBtn: document.getElementById("download-btn"),
-  copyBtn: document.getElementById("copy-btn"),
-  shareBtn: document.getElementById("share-btn"),
+  recordsList: document.getElementById("records-list"),
   adminLink: document.getElementById("admin-link"),
   logoutBtn: document.getElementById("logout-btn"),
-  tabs: document.querySelectorAll(".result-card .tab"),
-  panels: {
-    transcript: document.getElementById("panel-transcript"),
-    summary: document.getElementById("panel-summary"),
-  },
 };
 
-let currentResult = null;
+let recordsController = null;
 
 function setStatus(message, type = "loading") {
   elements.status.hidden = false;
@@ -44,43 +24,6 @@ function clearStatus() {
   elements.status.textContent = "";
 }
 
-function switchTab(name) {
-  elements.tabs.forEach((tab) => {
-    const active = tab.dataset.tab === name;
-    tab.classList.toggle("tab--active", active);
-    tab.setAttribute("aria-selected", active ? "true" : "false");
-  });
-
-  Object.entries(elements.panels).forEach(([key, panel]) => {
-    const active = key === name;
-    panel.hidden = !active;
-    panel.classList.toggle("tab-panel--active", active);
-  });
-}
-
-function renderResult(data) {
-  currentResult = data;
-  elements.result.hidden = false;
-
-  elements.metaTitle.textContent = data.title || "未获取到标题";
-  elements.metaLink.textContent = data.videoUrl;
-  elements.metaLink.href = data.videoUrl;
-  elements.metaPlatform.textContent = PLATFORM_LABELS[data.platform] || data.platform || "";
-
-  if (data.author) {
-    elements.metaAuthor.hidden = false;
-    elements.metaAuthor.textContent = `作者：${data.author}`;
-  } else {
-    elements.metaAuthor.hidden = true;
-    elements.metaAuthor.textContent = "";
-  }
-
-  elements.transcript.textContent = data.transcript || "";
-  renderMarkdown(elements.summary, data.summary || "暂无总结内容");
-  elements.shareBtn.hidden = !data.shareUrl;
-  switchTab("transcript");
-}
-
 async function extractContent() {
   const input = elements.input.value.trim();
   if (!input) {
@@ -88,9 +31,7 @@ async function extractContent() {
     return;
   }
 
-  elements.extractBtn.disabled = true;
-  elements.result.hidden = true;
-  setStatus("正在提取口播稿并生成总结，可能需要 1～3 分钟，请稍候…", "loading");
+  setStatus("正在提交…", "loading");
 
   try {
     const response = await fetch("/api/extract", {
@@ -102,81 +43,25 @@ async function extractContent() {
 
     const payload = await response.json();
     if (!response.ok || !payload.success) {
-      if (payload.data?.transcript) {
-        renderResult({
-          platform: payload.data.platform,
-          videoUrl: payload.data.videoUrl,
-          title: payload.data.title,
-          author: payload.data.author,
-          transcript: payload.data.transcript,
-          summary: "",
-        });
-      }
-      throw new Error(payload.error || "提取失败");
+      throw new Error(payload.error || "提交失败");
     }
 
-    renderResult(payload.data);
     clearStatus();
-  } catch (error) {
-    setStatus(error.message || "提取失败，请稍后重试", "error");
-  } finally {
-    elements.extractBtn.disabled = false;
-  }
-}
+    elements.input.value = "";
+    showToast(payload.data.message || "已提交");
 
-function downloadMarkdown() {
-  if (!currentResult) return;
+    await recordsController.load(5);
 
-  const markdown = buildMarkdown(currentResult, PLATFORM_LABELS);
-  const safeName = (currentResult.title || "视频内容")
-    .replace(/[\\/:*?"<>|]/g, "_")
-    .slice(0, 40);
-  const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${safeName}.md`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-async function copyMarkdown() {
-  if (!currentResult) return;
-
-  try {
-    const markdown = buildMarkdown(currentResult, PLATFORM_LABELS);
-    await navigator.clipboard.writeText(markdown);
-    showToast("已复制到剪贴板");
-  } catch {
-    showToast("复制失败，请手动选择内容复制");
-  }
-}
-
-async function shareResult() {
-  if (!currentResult?.shareUrl) {
-    setStatus("分享链接生成失败，请重新提取", "error");
-    return;
-  }
-
-  const shareData = {
-    title: currentResult.title || "视频内容分享",
-    url: currentResult.shareUrl,
-  };
-
-  if (navigator.share) {
-    try {
-      await navigator.share(shareData);
-      return;
-    } catch (error) {
-      if (error.name === "AbortError") return;
+    const newId = payload.data.historyId;
+    if (newId) {
+      await recordsController.toggleAccordion(newId);
+      const accordion = elements.recordsList.querySelector(
+        `.history-accordion[data-id="${newId}"]`
+      );
+      accordion?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
-  }
-
-  try {
-    await navigator.clipboard.writeText(currentResult.shareUrl);
-    showToast("分享链接已复制到剪贴板");
-  } catch {
-    setStatus("分享失败，请手动复制链接", "error");
+  } catch (error) {
+    setStatus(error.message || "提交失败，请稍后重试", "error");
   }
 }
 
@@ -187,19 +72,35 @@ async function init() {
   if (user.role === "admin") {
     elements.adminLink.hidden = false;
   }
+
+  recordsController = createHistoryListController({
+    container: elements.recordsList,
+    emptyMessage: "暂无记录，提交第一条试试吧",
+    limit: 5,
+  });
+
+  try {
+    await recordsController.load(5);
+  } catch (error) {
+    setStatus(error.message, "error");
+  }
+
+  document.addEventListener("visibilitychange", async () => {
+    if (!document.hidden && recordsController) {
+      try {
+        await recordsController.load(5);
+      } catch {
+        // ignore
+      }
+    }
+  });
 }
 
 elements.extractBtn.addEventListener("click", extractContent);
-elements.downloadBtn.addEventListener("click", downloadMarkdown);
-elements.copyBtn.addEventListener("click", copyMarkdown);
-elements.shareBtn.addEventListener("click", shareResult);
 elements.logoutBtn.addEventListener("click", async () => {
+  recordsController?.destroy();
   await apiPost("/api/auth/logout", {});
   window.location.href = "/login.html";
-});
-
-elements.tabs.forEach((tab) => {
-  tab.addEventListener("click", () => switchTab(tab.dataset.tab));
 });
 
 init();

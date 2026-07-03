@@ -3,7 +3,7 @@ import { renderSharePage } from "./shareTemplate.js";
 import { getShare } from "./share.js";
 import { textResponse } from "./http.js";
 import { handleLogin, handleLogout, handleMe } from "./routes/auth.js";
-import { handleExtract } from "./routes/extract.js";
+import { handleExtractSubmit } from "./routes/extract.js";
 import { handleHistoryDetail, handleHistoryList } from "./routes/history.js";
 import {
   ensureAdminUser,
@@ -37,7 +37,11 @@ export default {
     }
 
     if (pathname === "/api/extract" && method === "POST") {
-      return handleExtract(request, env);
+      const result = await handleExtractSubmit(request, env, ctx);
+      if (result.runInBackground) {
+        ctx.waitUntil(result.runInBackground());
+      }
+      return result.response;
     }
 
     if (pathname === "/api/history" && method === "GET") {

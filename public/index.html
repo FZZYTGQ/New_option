@@ -26,46 +26,22 @@
     </header>
 
     <section class="card input-card">
-      <!-- <label class="label" for="share-input">粘贴链接</label> -->
       <textarea
         id="share-input"
         class="textarea"
         rows="5"
         placeholder="在此粘贴抖音 / B站 / 小红书的分享链接，暂时只支持30分钟以内的视频哦"
       ></textarea>
-      <!-- <p class="hint">支持从整段分享文字中自动识别视频链接，可包含标题、口令等杂项文字。</p> -->
       <button id="extract-btn" class="btn btn--primary" type="button">开始提取</button>
     </section>
 
     <div id="status" class="status" hidden></div>
 
-    <section id="result" class="result" hidden>
-      <div class="card result-card">
-        <div class="result__toolbar">
-          <div class="tabs" role="tablist">
-            <button class="tab tab--active" type="button" data-tab="transcript" role="tab" aria-selected="true">内容转写</button>
-            <button class="tab" type="button" data-tab="summary" role="tab" aria-selected="false">智能总结</button>
-          </div>
-          <div class="result__actions">
-            <button id="download-btn" class="btn btn--secondary" type="button">下载</button>
-            <button id="copy-btn" class="btn btn--secondary" type="button">复制</button>
-            <button id="share-btn" class="btn btn--secondary" type="button" hidden>一键分享</button>
-          </div>
-        </div>
-
-        <div id="panel-transcript" class="tab-panel tab-panel--active" role="tabpanel">
-          <div class="video-meta">
-            <p class="video-meta__title"><strong id="meta-title">未获取到标题</strong></p>
-            <p id="meta-author" class="video-meta__item" hidden></p>
-            <p class="video-meta__item">链接：<a id="meta-link" href="#" target="_blank" rel="noopener noreferrer"></a></p>
-            <p class="video-meta__item">平台：<span id="meta-platform"></span></p>
-          </div>
-          <div id="transcript" class="content-box content-box--transcript"></div>
-        </div>
-
-        <div id="panel-summary" class="tab-panel" role="tabpanel" hidden>
-          <div id="summary" class="content-box content-box--summary markdown-body"></div>
-        </div>
+    <section class="records-section">
+      <h2 class="section-title">我的记录</h2>
+      <div id="records-list" class="history-list"></div>
+      <div class="records-section__footer">
+        <a class="btn btn--secondary btn--block" href="/history.html">查看全部历史记录</a>
       </div>
     </section>
   </div>

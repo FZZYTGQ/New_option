@@ -47,8 +47,21 @@ function switchTab(name) {
 }
 
 function renderStatusBadge(itemStatus) {
-  const success = itemStatus === "success";
-  return `<span class="status-badge ${success ? "status-badge--success" : "status-badge--failed"}">${success ? "成功" : "失败"}</span>`;
+  const labels = {
+    success: "成功",
+    failed: "失败",
+    processing: "处理中",
+    queued: "排队中",
+  };
+  const classes = {
+    success: "status-badge--success",
+    failed: "status-badge--failed",
+    processing: "status-badge--processing",
+    queued: "status-badge--queued",
+  };
+  const label = labels[itemStatus] || itemStatus;
+  const className = classes[itemStatus] || "status-badge--failed";
+  return `<span class="status-badge ${className}">${label}</span>`;
 }
 
 function renderRecentTable(recent) {

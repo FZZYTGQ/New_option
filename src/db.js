@@ -1,5 +1,7 @@
 export const MAX_DURATION_SECONDS = 30 * 60;
 export const DEFAULT_QUOTA_MINUTES = 30;
+export const MAX_CONCURRENT_JOBS = 3;
+export const JOB_TIMEOUT_MINUTES = 10;
 
 export function nowIso() {
   return new Date().toISOString();
@@ -17,11 +19,12 @@ export function chargeMinutes(durationSeconds) {
 }
 
 export async function insertHistory(env, record) {
+  const updatedAt = record.updated_at || record.created_at;
   await env.DB.prepare(
     `INSERT INTO history (
       id, user_id, platform, video_url, title, author, duration_seconds,
-      minutes_charged, transcript, summary, status, error_message, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      minutes_charged, transcript, summary, status, error_message, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       record.id,
@@ -36,8 +39,101 @@ export async function insertHistory(env, record) {
       record.summary,
       record.status,
       record.error_message,
-      record.created_at
+      record.created_at,
+      updatedAt
     )
+    .run();
+}
+
+export async function updateHistory(env, historyId, fields) {
+  const columnMap = {
+    platform: "platform",
+    title: "title",
+    author: "author",
+    duration_seconds: "duration_seconds",
+    minutes_charged: "minutes_charged",
+    transcript: "transcript",
+    summary: "summary",
+    status: "status",
+    error_message: "error_message",
+  };
+
+  const sets = ["updated_at = ?"];
+  const values = [nowIso()];
+
+  for (const [key, column] of Object.entries(columnMap)) {
+    if (Object.prototype.hasOwnProperty.call(fields, key)) {
+      sets.push(`${column} = ?`);
+      values.push(fields[key]);
+    }
+  }
+
+  values.push(historyId);
+  await env.DB.prepare(`UPDATE history SET ${sets.join(", ")} WHERE id = ?`)
+    .bind(...values)
+    .run();
+}
+
+export async function countActiveJobs(env, userId) {
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS count FROM history
+     WHERE user_id = ? AND status IN ('processing', 'queued')`
+  )
+    .bind(userId)
+    .first();
+  return row?.count || 0;
+}
+
+export async function countProcessingJobs(env, userId) {
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS count FROM history WHERE user_id = ? AND status = 'processing'`
+  )
+    .bind(userId)
+    .first();
+  return row?.count || 0;
+}
+
+export async function tryPromoteQueuedJob(env, userId) {
+  const processing = await countProcessingJobs(env, userId);
+  if (processing >= MAX_CONCURRENT_JOBS) {
+    return null;
+  }
+
+  const next = await env.DB.prepare(
+    `SELECT id FROM history
+     WHERE user_id = ? AND status = 'queued'
+     ORDER BY created_at ASC
+     LIMIT 1`
+  )
+    .bind(userId)
+    .first();
+
+  if (!next) {
+    return null;
+  }
+
+  const timestamp = nowIso();
+  const result = await env.DB.prepare(
+    `UPDATE history SET status = 'processing', updated_at = ?
+     WHERE id = ? AND status = 'queued'`
+  )
+    .bind(timestamp, next.id)
+    .run();
+
+  if (!result.meta?.changes) {
+    return null;
+  }
+
+  return next.id;
+}
+
+export async function expireStuckJobs(env, userId) {
+  const cutoff = new Date(Date.now() - JOB_TIMEOUT_MINUTES * 60 * 1000).toISOString();
+  await env.DB.prepare(
+    `UPDATE history SET status = 'failed', error_message = '处理超时，请重试', updated_at = ?
+     WHERE user_id = ? AND status = 'processing' AND updated_at < ?`
+  )
+    .bind(nowIso(), userId, cutoff)
     .run();
 }
 
@@ -76,4 +172,23 @@ export async function chargeUserQuota(env, userId, minutes, historyId) {
     note: null,
     created_at: timestamp,
   });
+}
+
+export async function getUserQuota(env, userId) {
+  const row = await env.DB.prepare(
+    "SELECT quota_minutes FROM users WHERE id = ?"
+  )
+    .bind(userId)
+    .first();
+  return row?.quota_minutes ?? 0;
+}
+
+export async function getHistoryById(env, historyId, userId) {
+  return env.DB.prepare(
+    `SELECT id, user_id, platform, video_url, title, author, duration_seconds,
+            minutes_charged, transcript, summary, status, error_message, created_at, updated_at
+     FROM history WHERE id = ? AND user_id = ?`
+  )
+    .bind(historyId, userId)
+    .first();
 }

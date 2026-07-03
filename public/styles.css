@@ -536,6 +536,42 @@ body {
   color: #b91c1c;
 }
 
+.history-item__status--processing {
+  color: #1d4ed8;
+}
+
+.history-item__status--queued {
+  color: #64748b;
+}
+
+.records-section {
+  margin-top: 8px;
+}
+
+.records-section .section-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.records-section__footer {
+  margin-top: 12px;
+}
+
+.btn--block {
+  display: block;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+}
+
+.history-accordion__pending {
+  padding: 20px 16px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .history-item__title {
   font-size: 15px;
   font-weight: 600;
@@ -666,6 +702,16 @@ body {
 .status-badge--failed {
   color: #b91c1c;
   background: #fee2e2;
+}
+
+.status-badge--processing {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.status-badge--queued {
+  color: #475569;
+  background: #f1f5f9;
 }
 
 .table-actions {
