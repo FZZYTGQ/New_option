@@ -1,13 +1,19 @@
+import { BIBIGPT_TIMEOUT_MS, fetchWithTimeout } from "./fetchWithTimeout.js";
+
 export async function fetchSubtitle(videoUrl, apiToken) {
   const apiUrl = new URL("https://api.bibigpt.co/api/v1/getSubtitle");
   apiUrl.searchParams.set("url", videoUrl);
   apiUrl.searchParams.set("audioLanguage", "zh");
 
-  const response = await fetch(apiUrl.toString(), {
-    headers: {
-      Authorization: `Bearer ${apiToken}`,
+  const response = await fetchWithTimeout(
+    apiUrl.toString(),
+    {
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+      },
     },
-  });
+    BIBIGPT_TIMEOUT_MS
+  );
 
   const raw = await response.text();
   let data;

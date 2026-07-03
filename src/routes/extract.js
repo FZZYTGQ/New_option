@@ -7,11 +7,14 @@ import {
   chargeUserQuota,
   createId,
   countProcessingJobs,
+  expireStuckJobs,
   getHistoryById,
   getUserQuota,
   insertHistory,
+  JOB_HEARTBEAT_INTERVAL_MS,
   MAX_DURATION_SECONDS,
   nowIso,
+  touchHistoryHeartbeat,
   tryPromoteQueuedJob,
   updateHistory,
 } from "../db.js";
@@ -20,6 +23,13 @@ import { requireUser } from "../middleware.js";
 import { saveShare } from "../share.js";
 
 const QUOTA_EXHAUSTED_MESSAGE = "额度用完了，请联系小赵学姐增加额度";
+
+function startHeartbeat(env, historyId) {
+  const timer = setInterval(() => {
+    touchHistoryHeartbeat(env, historyId).catch(() => {});
+  }, JOB_HEARTBEAT_INTERVAL_MS);
+  return () => clearInterval(timer);
+}
 
 async function saveFailedHistory(env, user, extracted, fields) {
   const timestamp = nowIso();
@@ -49,99 +59,110 @@ export async function runExtractJob(env, historyId, userId) {
     return;
   }
 
-  await updateHistory(env, historyId, { status: "processing" });
+  const stopHeartbeat = startHeartbeat(env, historyId);
 
-  const bibigptToken = env.BIBIGPT_API_TOKEN;
-  const deepseekKey = env.DEEPSEEK_API_KEY;
-  if (!bibigptToken || !deepseekKey) {
-    await updateHistory(env, historyId, {
-      status: "failed",
-      error_message: "服务端 API 密钥未配置，请联系管理员",
-    });
-    return;
-  }
-
-  let subtitle;
   try {
-    subtitle = await fetchSubtitle(record.video_url, bibigptToken);
+    await updateHistory(env, historyId, { status: "processing" });
+
+    const bibigptToken = env.BIBIGPT_API_TOKEN;
+    const deepseekKey = env.DEEPSEEK_API_KEY;
+    if (!bibigptToken || !deepseekKey) {
+      await updateHistory(env, historyId, {
+        status: "failed",
+        error_message: "服务端 API 密钥未配置，请联系管理员",
+      });
+      return;
+    }
+
+    let subtitle;
+    try {
+      subtitle = await fetchSubtitle(record.video_url, bibigptToken);
+    } catch (error) {
+      await updateHistory(env, historyId, {
+        status: "failed",
+        error_message: error.message || "转写失败",
+      });
+      return;
+    }
+
+    const durationSeconds =
+      Number(subtitle.duration) || Number(subtitle.costDuration) || 0;
+    if (durationSeconds > MAX_DURATION_SECONDS) {
+      await updateHistory(env, historyId, {
+        platform: record.platform,
+        title: subtitle.title,
+        author: subtitle.author,
+        duration_seconds: durationSeconds,
+        status: "failed",
+        error_message: "视频超过 30 分钟，暂不支持",
+      });
+      return;
+    }
+
+    const minutesToCharge = chargeMinutes(durationSeconds);
+    const quotaMinutes = await getUserQuota(env, userId);
+    if (quotaMinutes < minutesToCharge) {
+      await updateHistory(env, historyId, {
+        platform: record.platform,
+        title: subtitle.title,
+        author: subtitle.author,
+        duration_seconds: durationSeconds,
+        transcript: subtitle.transcript,
+        status: "failed",
+        error_message: QUOTA_EXHAUSTED_MESSAGE,
+      });
+      return;
+    }
+
+    let summary = "";
+    let summaryError = null;
+    try {
+      const result = await summarizeTranscript({
+        title: subtitle.title,
+        transcript: subtitle.transcript,
+        apiKey: deepseekKey,
+        playbook,
+      });
+      summary = result.summary;
+    } catch (error) {
+      summaryError = error;
+    }
+
+    const isSuccess = !summaryError;
+
+    await updateHistory(env, historyId, {
+      platform: record.platform,
+      title: subtitle.title,
+      author: subtitle.author,
+      duration_seconds: durationSeconds || null,
+      minutes_charged: minutesToCharge,
+      transcript: subtitle.transcript,
+      summary: isSuccess ? summary : null,
+      status: isSuccess ? "success" : "failed",
+      error_message: summaryError?.message || null,
+    });
+
+    await chargeUserQuota(env, userId, minutesToCharge, historyId);
+
+    if (isSuccess) {
+      const data = {
+        historyId,
+        platform: record.platform,
+        videoUrl: record.video_url,
+        title: subtitle.title,
+        author: subtitle.author,
+        transcript: subtitle.transcript,
+        summary,
+      };
+      await saveShare(env, data);
+    }
   } catch (error) {
     await updateHistory(env, historyId, {
       status: "failed",
-      error_message: error.message || "转写失败",
+      error_message: error.message || "处理失败，请重试",
     });
-    return;
-  }
-
-  const durationSeconds =
-    Number(subtitle.duration) || Number(subtitle.costDuration) || 0;
-  if (durationSeconds > MAX_DURATION_SECONDS) {
-    await updateHistory(env, historyId, {
-      platform: record.platform,
-      title: subtitle.title,
-      author: subtitle.author,
-      duration_seconds: durationSeconds,
-      status: "failed",
-      error_message: "视频超过 30 分钟，暂不支持",
-    });
-    return;
-  }
-
-  const minutesToCharge = chargeMinutes(durationSeconds);
-  const quotaMinutes = await getUserQuota(env, userId);
-  if (quotaMinutes < minutesToCharge) {
-    await updateHistory(env, historyId, {
-      platform: record.platform,
-      title: subtitle.title,
-      author: subtitle.author,
-      duration_seconds: durationSeconds,
-      transcript: subtitle.transcript,
-      status: "failed",
-      error_message: QUOTA_EXHAUSTED_MESSAGE,
-    });
-    return;
-  }
-
-  let summary = "";
-  let summaryError = null;
-  try {
-    const result = await summarizeTranscript({
-      title: subtitle.title,
-      transcript: subtitle.transcript,
-      apiKey: deepseekKey,
-      playbook,
-    });
-    summary = result.summary;
-  } catch (error) {
-    summaryError = error;
-  }
-
-  const isSuccess = !summaryError;
-
-  await updateHistory(env, historyId, {
-    platform: record.platform,
-    title: subtitle.title,
-    author: subtitle.author,
-    duration_seconds: durationSeconds || null,
-    minutes_charged: minutesToCharge,
-    transcript: subtitle.transcript,
-    summary: isSuccess ? summary : null,
-    status: isSuccess ? "success" : "failed",
-    error_message: summaryError?.message || null,
-  });
-
-  await chargeUserQuota(env, userId, minutesToCharge, historyId);
-
-  if (isSuccess) {
-    const data = {
-      historyId,
-      platform: record.platform,
-      videoUrl: record.video_url,
-      title: subtitle.title,
-      author: subtitle.author,
-      transcript: subtitle.transcript,
-      summary,
-    };
-    await saveShare(env, data);
+  } finally {
+    stopHeartbeat();
   }
 }
 
@@ -162,6 +183,8 @@ export async function handleExtractSubmit(request, env, ctx) {
     return { response: auth.error };
   }
   const user = auth.user;
+
+  await expireStuckJobs(env, user.id);
 
   if (user.quota_minutes <= 0) {
     return {
@@ -261,5 +284,4 @@ export async function handleExtractSubmit(request, env, ctx) {
   return result;
 }
 
-// Keep legacy export name for index.js
 export const handleExtract = handleExtractSubmit;

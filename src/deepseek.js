@@ -1,3 +1,5 @@
+import { DEEPSEEK_TIMEOUT_MS, fetchWithTimeout } from "./fetchWithTimeout.js";
+
 function tryParseSummaryError(content) {
   const trimmed = content.trim();
   if (!trimmed.startsWith("{") || !trimmed.includes('"code"')) {
@@ -17,24 +19,28 @@ function tryParseSummaryError(content) {
 }
 
 export async function summarizeTranscript({ title, transcript, apiKey, playbook }) {
-  const response = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
+  const response = await fetchWithTimeout(
+    "https://api.deepseek.com/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: playbook },
+          {
+            role: "user",
+            content: `请根据以下视频口播逐字稿进行总结。\n\n视频标题：${title || "（未知）"}\n\n口播逐字稿：\n${transcript}`,
+          },
+        ],
+        temperature: 0.3,
+      }),
     },
-    body: JSON.stringify({
-      model: "deepseek-chat",
-      messages: [
-        { role: "system", content: playbook },
-        {
-          role: "user",
-          content: `请根据以下视频口播逐字稿进行总结。\n\n视频标题：${title || "（未知）"}\n\n口播逐字稿：\n${transcript}`,
-        },
-      ],
-      temperature: 0.3,
-    }),
-  });
+    DEEPSEEK_TIMEOUT_MS
+  );
 
   const raw = await response.text();
   let data;

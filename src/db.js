@@ -1,7 +1,8 @@
 export const MAX_DURATION_SECONDS = 30 * 60;
 export const DEFAULT_QUOTA_MINUTES = 30;
 export const MAX_CONCURRENT_JOBS = 3;
-export const JOB_TIMEOUT_MINUTES = 10;
+export const JOB_TIMEOUT_MINUTES = 5;
+export const JOB_HEARTBEAT_INTERVAL_MS = 30 * 1000;
 
 export function nowIso() {
   return new Date().toISOString();
@@ -125,6 +126,14 @@ export async function tryPromoteQueuedJob(env, userId) {
   }
 
   return next.id;
+}
+
+export async function touchHistoryHeartbeat(env, historyId) {
+  await env.DB.prepare(
+    "UPDATE history SET updated_at = ? WHERE id = ? AND status = 'processing'"
+  )
+    .bind(nowIso(), historyId)
+    .run();
 }
 
 export async function expireStuckJobs(env, userId) {
