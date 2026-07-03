@@ -38,7 +38,7 @@ export default {
     }
 
     if (pathname === "/api/extract" && method === "POST") {
-      return handleExtractSubmit(request, env);
+      return handleExtractSubmit(request, env, ctx);
     }
 
     if (pathname === "/api/history" && method === "GET") {

@@ -15,10 +15,10 @@ import {
   MAX_DURATION_SECONDS,
   nowIso,
   touchHistoryHeartbeat,
+  tryPromoteQueuedJob,
   updateHistory,
 } from "../db.js";
 import { jsonResponse } from "../http.js";
-import { promoteAndSchedule, scheduleJobRun } from "../jobScheduler.js";
 import { requireUser } from "../middleware.js";
 import { saveShare } from "../share.js";
 
@@ -166,7 +166,36 @@ export async function runExtractJob(env, historyId, userId) {
   }
 }
 
-export async function handleExtractSubmit(request, env) {
+function scheduleInlineJob(env, ctx, historyId, userId) {
+  ctx.waitUntil(
+    (async () => {
+      try {
+        await runExtractJob(env, historyId, userId);
+      } catch (error) {
+        console.error(`Job ${historyId} failed:`, error);
+        try {
+          await updateHistory(env, historyId, {
+            status: "failed",
+            error_message: error.message || "处理失败，请重试",
+          });
+        } catch (updateError) {
+          console.error(`Failed to mark job ${historyId} failed:`, updateError);
+        }
+      }
+
+      try {
+        const nextId = await tryPromoteQueuedJob(env, userId);
+        if (nextId) {
+          scheduleInlineJob(env, ctx, nextId, userId);
+        }
+      } catch (error) {
+        console.error(`Failed to promote next job for user ${userId}:`, error);
+      }
+    })()
+  );
+}
+
+export async function handleExtractSubmit(request, env, ctx) {
   const auth = await requireUser(request, env);
   if (auth.error) {
     return auth.error;
@@ -175,9 +204,12 @@ export async function handleExtractSubmit(request, env) {
 
   await expireStuckJobs(env, user.id);
   try {
-    await promoteAndSchedule(request, env, user.id);
+    const resumedId = await tryPromoteQueuedJob(env, user.id);
+    if (resumedId) {
+      scheduleInlineJob(env, ctx, resumedId, user.id);
+    }
   } catch (error) {
-    console.error("Failed to promote queued job:", error);
+    console.error("Failed to resume queued job:", error);
   }
 
   if (user.quota_minutes <= 0) {
@@ -248,86 +280,19 @@ export async function handleExtractSubmit(request, env) {
       : "已提交，正在处理中";
 
   if (status === "processing") {
-    const dispatched = await tryDispatchJob(request, env, historyId, user.id);
-    if (!dispatched.ok) {
-      return jsonResponse(
-        {
-          success: false,
-          error: dispatched.error || "任务启动失败，请重试",
-        },
-        500
-      );
-    }
+    scheduleInlineJob(env, ctx, historyId, user.id);
   }
-
-  const finalRecord = await getHistoryById(env, historyId, user.id);
-  const finalStatus = finalRecord?.status || status;
 
   return jsonResponse({
     success: true,
     data: {
       historyId,
-      status: finalStatus,
-      message:
-        finalStatus === "success"
-          ? "处理完成"
-          : finalStatus === "failed"
-            ? finalRecord?.error_message || "处理失败"
-            : message,
+      status,
+      message,
       platform: extracted.platform,
       videoUrl: extracted.url,
     },
   });
-}
-
-async function tryDispatchJob(request, env, historyId, userId) {
-  try {
-    const jobResponse = await scheduleJobRun(request, env, historyId);
-    if (jobResponse.ok) {
-      return { ok: true };
-    }
-
-    let errorMessage = `任务调度失败 (HTTP ${jobResponse.status})`;
-    try {
-      const body = await jobResponse.json();
-      errorMessage = body.error || errorMessage;
-    } catch {
-      // ignore parse errors
-    }
-
-    console.error(`Job dispatch failed for ${historyId}: ${errorMessage}`);
-    return await runJobInline(request, env, historyId, userId, errorMessage);
-  } catch (error) {
-    console.error(`Job dispatch error for ${historyId}:`, error);
-    return await runJobInline(request, env, historyId, userId, error.message);
-  }
-}
-
-async function runJobInline(request, env, historyId, userId, dispatchError) {
-  try {
-    await runExtractJob(env, historyId, userId);
-    try {
-      await promoteAndSchedule(request, env, userId);
-    } catch (promoteError) {
-      console.error("Inline promote failed:", promoteError);
-    }
-
-    const record = await getHistoryById(env, historyId, userId);
-    if (record?.status === "success") {
-      return { ok: true, inline: true };
-    }
-
-    return {
-      ok: false,
-      error: record?.error_message || dispatchError || "处理失败，请重试",
-    };
-  } catch (error) {
-    await updateHistory(env, historyId, {
-      status: "failed",
-      error_message: error.message || "处理失败，请重试",
-    });
-    return { ok: false, error: error.message || "处理失败，请重试" };
-  }
 }
 
 export const handleExtract = handleExtractSubmit;
