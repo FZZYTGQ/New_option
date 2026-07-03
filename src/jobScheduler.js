@@ -21,12 +21,12 @@ export function scheduleJobRun(request, env, historyId) {
   });
 }
 
-export async function promoteAndSchedule(request, env, userId, ctx) {
+export async function promoteAndSchedule(request, env, userId) {
   const nextId = await tryPromoteQueuedJob(env, userId);
-  if (!nextId || !ctx) {
+  if (!nextId) {
     return null;
   }
 
-  ctx.waitUntil(scheduleJobRun(request, env, nextId).catch(() => {}));
+  await scheduleJobRun(request, env, nextId);
   return nextId;
 }

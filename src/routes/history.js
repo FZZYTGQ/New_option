@@ -3,14 +3,18 @@ import { requireUser } from "../middleware.js";
 import { expireStuckJobs } from "../db.js";
 import { promoteAndSchedule } from "../jobScheduler.js";
 
-export async function handleHistoryList(request, env, ctx) {
+export async function handleHistoryList(request, env) {
   const auth = await requireUser(request, env);
   if (auth.error) {
     return auth.error;
   }
 
   await expireStuckJobs(env, auth.user.id);
-  await promoteAndSchedule(request, env, auth.user.id, ctx);
+  try {
+    await promoteAndSchedule(request, env, auth.user.id);
+  } catch (error) {
+    console.error("Failed to promote queued job:", error);
+  }
 
   const url = new URL(request.url);
   const limitParam = url.searchParams.get("limit");

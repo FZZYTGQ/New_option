@@ -22,19 +22,27 @@ export async function handleJobRun(request, env, ctx, historyId) {
   }
 
   if (record.status !== "processing") {
-    return jsonResponse({ success: true, data: { skipped: true } });
+    return jsonResponse({ success: true, data: { skipped: true } }, 202);
   }
 
-  try {
-    await runExtractJob(env, historyId, record.user_id);
-  } catch (error) {
-    console.error(`Job ${historyId} failed:`, error);
-  }
+  ctx.waitUntil(
+    (async () => {
+      try {
+        await runExtractJob(env, historyId, record.user_id);
+      } catch (error) {
+        console.error(`Job ${historyId} failed:`, error);
+      }
 
-  const processingCount = await countProcessingJobs(env, record.user_id);
-  if (processingCount < 3) {
-    await promoteAndSchedule(request, env, record.user_id, ctx);
-  }
+      const processingCount = await countProcessingJobs(env, record.user_id);
+      if (processingCount < 3) {
+        try {
+          await promoteAndSchedule(request, env, record.user_id);
+        } catch (error) {
+          console.error(`Failed to promote next job for user ${record.user_id}:`, error);
+        }
+      }
+    })()
+  );
 
-  return jsonResponse({ success: true });
+  return jsonResponse({ success: true, data: { accepted: true } }, 202);
 }

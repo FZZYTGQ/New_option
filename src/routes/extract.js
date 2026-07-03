@@ -166,36 +166,34 @@ export async function runExtractJob(env, historyId, userId) {
   }
 }
 
-export async function handleExtractSubmit(request, env, ctx) {
+export async function handleExtractSubmit(request, env) {
   const auth = await requireUser(request, env);
   if (auth.error) {
-    return { response: auth.error };
+    return auth.error;
   }
   const user = auth.user;
 
   await expireStuckJobs(env, user.id);
-  await promoteAndSchedule(request, env, user.id, ctx);
+  try {
+    await promoteAndSchedule(request, env, user.id);
+  } catch (error) {
+    console.error("Failed to promote queued job:", error);
+  }
 
   if (user.quota_minutes <= 0) {
-    return {
-      response: jsonResponse({ success: false, error: QUOTA_EXHAUSTED_MESSAGE }, 403),
-    };
+    return jsonResponse({ success: false, error: QUOTA_EXHAUSTED_MESSAGE }, 403);
   }
 
   let payload;
   try {
     payload = await request.json();
   } catch {
-    return {
-      response: jsonResponse({ success: false, error: "请求体必须是 JSON" }, 400),
-    };
+    return jsonResponse({ success: false, error: "请求体必须是 JSON" }, 400);
   }
 
   const input = payload.input?.trim();
   if (!input) {
-    return {
-      response: jsonResponse({ success: false, error: "请粘贴分享内容或视频链接" }, 400),
-    };
+    return jsonResponse({ success: false, error: "请粘贴分享内容或视频链接" }, 400);
   }
 
   const extracted = extractVideoUrl(input);
@@ -204,26 +202,22 @@ export async function handleExtractSubmit(request, env, ctx) {
       video_url: input.slice(0, 500),
       error_message: "未识别到支持的视频链接，请确认包含抖音、B站或小红书链接",
     });
-    return {
-      response: jsonResponse(
-        {
-          success: false,
-          error: "未识别到支持的视频链接，请确认包含抖音、B站或小红书链接",
-        },
-        400
-      ),
-    };
+    return jsonResponse(
+      {
+        success: false,
+        error: "未识别到支持的视频链接，请确认包含抖音、B站或小红书链接",
+      },
+      400
+    );
   }
 
   const bibigptToken = env.BIBIGPT_API_TOKEN;
   const deepseekKey = env.DEEPSEEK_API_KEY;
   if (!bibigptToken || !deepseekKey) {
-    return {
-      response: jsonResponse(
-        { success: false, error: "服务端 API 密钥未配置，请联系管理员" },
-        500
-      ),
-    };
+    return jsonResponse(
+      { success: false, error: "服务端 API 密钥未配置，请联系管理员" },
+      500
+    );
   }
 
   const processingCount = await countProcessingJobs(env, user.id);
@@ -253,24 +247,42 @@ export async function handleExtractSubmit(request, env, ctx) {
       ? "已加入队列，前方任务完成后将自动开始"
       : "已提交，正在处理中";
 
-  const result = {
-    response: jsonResponse({
-      success: true,
-      data: {
-        historyId,
-        status,
-        message,
-        platform: extracted.platform,
-        videoUrl: extracted.url,
-      },
-    }),
-  };
-
   if (status === "processing") {
-    result.scheduleJob = () => scheduleJobRun(request, env, historyId);
+    try {
+      const jobResponse = await scheduleJobRun(request, env, historyId);
+      if (!jobResponse.ok) {
+        let errorMessage = `任务启动失败 (${jobResponse.status})`;
+        try {
+          const body = await jobResponse.json();
+          errorMessage = body.error || errorMessage;
+        } catch {
+          // ignore parse errors
+        }
+        await updateHistory(env, historyId, {
+          status: "failed",
+          error_message: errorMessage,
+        });
+        return jsonResponse({ success: false, error: "任务启动失败，请重试" }, 500);
+      }
+    } catch (error) {
+      await updateHistory(env, historyId, {
+        status: "failed",
+        error_message: error.message || "任务启动失败",
+      });
+      return jsonResponse({ success: false, error: "任务启动失败，请重试" }, 500);
+    }
   }
 
-  return result;
+  return jsonResponse({
+    success: true,
+    data: {
+      historyId,
+      status,
+      message,
+      platform: extracted.platform,
+      videoUrl: extracted.url,
+    },
+  });
 }
 
 export const handleExtract = handleExtractSubmit;

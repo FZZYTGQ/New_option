@@ -38,15 +38,11 @@ export default {
     }
 
     if (pathname === "/api/extract" && method === "POST") {
-      const result = await handleExtractSubmit(request, env, ctx);
-      if (result.scheduleJob) {
-        ctx.waitUntil(result.scheduleJob());
-      }
-      return result.response;
+      return handleExtractSubmit(request, env);
     }
 
     if (pathname === "/api/history" && method === "GET") {
-      return handleHistoryList(request, env, ctx);
+      return handleHistoryList(request, env);
     }
 
     const jobRunMatch = pathname.match(/^\/api\/jobs\/([a-zA-Z0-9]+)\/run$/);
