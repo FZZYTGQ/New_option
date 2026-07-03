@@ -294,6 +294,7 @@ body {
 .video-meta__title {
   font-size: 17px;
   line-height: 1.5;
+  color: #1f1f1f;
 }
 
 .video-meta__item {
@@ -460,6 +461,9 @@ body {
   background: transparent;
   padding: 16px;
   cursor: pointer;
+  color: #1f1f1f;
+  -webkit-text-fill-color: #1f1f1f;
+  font: inherit;
 }
 
 .history-accordion__header:hover {
@@ -576,6 +580,7 @@ body {
   font-size: 15px;
   font-weight: 600;
   line-height: 1.5;
+  color: #1f1f1f;
 }
 
 .empty-card {

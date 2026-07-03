@@ -76,7 +76,7 @@ function renderPendingBody(accordion, record) {
   const message =
     record.status === "queued"
       ? "排队中，前方任务完成后将自动开始处理"
-      : "正在转写和总结，约需 1～3 分钟，可切换应用稍后再看";
+      : "正在转写和总结，约需 1～3 分钟，可稍后再看";
   body.innerHTML = `<div class="history-accordion__pending">${escapeHtml(message)}</div>`;
 }
 
