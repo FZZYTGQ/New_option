@@ -5,6 +5,7 @@ import { textResponse } from "./http.js";
 import { handleLogin, handleLogout, handleMe } from "./routes/auth.js";
 import { handleExtractSubmit } from "./routes/extract.js";
 import { handleHistoryDetail, handleHistoryList } from "./routes/history.js";
+import { handleJobRun } from "./routes/jobs.js";
 import {
   ensureAdminUser,
   handleAdminCreateUser,
@@ -38,14 +39,19 @@ export default {
 
     if (pathname === "/api/extract" && method === "POST") {
       const result = await handleExtractSubmit(request, env, ctx);
-      if (result.runInBackground) {
-        ctx.waitUntil(result.runInBackground());
+      if (result.scheduleJob) {
+        ctx.waitUntil(result.scheduleJob());
       }
       return result.response;
     }
 
     if (pathname === "/api/history" && method === "GET") {
-      return handleHistoryList(request, env);
+      return handleHistoryList(request, env, ctx);
+    }
+
+    const jobRunMatch = pathname.match(/^\/api\/jobs\/([a-zA-Z0-9]+)\/run$/);
+    if (jobRunMatch && method === "POST") {
+      return handleJobRun(request, env, ctx, jobRunMatch[1]);
     }
 
     const historyMatch = pathname.match(/^\/api\/history\/([a-zA-Z0-9]+)$/);

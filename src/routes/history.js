@@ -1,14 +1,16 @@
 import { jsonResponse } from "../http.js";
 import { requireUser } from "../middleware.js";
 import { expireStuckJobs } from "../db.js";
+import { promoteAndSchedule } from "../jobScheduler.js";
 
-export async function handleHistoryList(request, env) {
+export async function handleHistoryList(request, env, ctx) {
   const auth = await requireUser(request, env);
   if (auth.error) {
     return auth.error;
   }
 
   await expireStuckJobs(env, auth.user.id);
+  await promoteAndSchedule(request, env, auth.user.id, ctx);
 
   const url = new URL(request.url);
   const limitParam = url.searchParams.get("limit");

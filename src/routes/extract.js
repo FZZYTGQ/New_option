@@ -15,10 +15,10 @@ import {
   MAX_DURATION_SECONDS,
   nowIso,
   touchHistoryHeartbeat,
-  tryPromoteQueuedJob,
   updateHistory,
 } from "../db.js";
 import { jsonResponse } from "../http.js";
+import { promoteAndSchedule, scheduleJobRun } from "../jobScheduler.js";
 import { requireUser } from "../middleware.js";
 import { saveShare } from "../share.js";
 
@@ -166,17 +166,6 @@ export async function runExtractJob(env, historyId, userId) {
   }
 }
 
-export async function runExtractJobWithPromotion(env, historyId, userId, ctx) {
-  try {
-    await runExtractJob(env, historyId, userId);
-  } finally {
-    const nextId = await tryPromoteQueuedJob(env, userId);
-    if (nextId && ctx) {
-      ctx.waitUntil(runExtractJobWithPromotion(env, nextId, userId, ctx));
-    }
-  }
-}
-
 export async function handleExtractSubmit(request, env, ctx) {
   const auth = await requireUser(request, env);
   if (auth.error) {
@@ -185,6 +174,7 @@ export async function handleExtractSubmit(request, env, ctx) {
   const user = auth.user;
 
   await expireStuckJobs(env, user.id);
+  await promoteAndSchedule(request, env, user.id, ctx);
 
   if (user.quota_minutes <= 0) {
     return {
@@ -277,8 +267,7 @@ export async function handleExtractSubmit(request, env, ctx) {
   };
 
   if (status === "processing") {
-    result.runInBackground = () =>
-      runExtractJobWithPromotion(env, historyId, user.id, ctx);
+    result.scheduleJob = () => scheduleJobRun(request, env, historyId);
   }
 
   return result;
