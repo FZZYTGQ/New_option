@@ -69,23 +69,29 @@ async function extractContent() {
 }
 
 async function init() {
-  const user = await requireAuth();
-  if (!user) return;
-
-  if (user.role === "admin") {
-    elements.adminLink.hidden = false;
-  }
-
   recordsController = createHistoryListController({
     container: elements.recordsList,
     emptyMessage: "暂无记录，提交第一条试试吧",
     limit: 5,
   });
 
-  try {
-    await recordsController.load(5);
-  } catch (error) {
-    setStatus(error.message, "error");
+  const [user, loadResult] = await Promise.all([
+    requireAuth(),
+    recordsController.load(5).catch((error) => error),
+  ]);
+
+  if (!user) return;
+
+  if (user.role === "admin") {
+    elements.adminLink.hidden = false;
+  }
+
+  if (loadResult instanceof Error) {
+    elements.recordsList.classList.remove("history-list--loading");
+    elements.recordsList.removeAttribute("aria-busy");
+    elements.recordsList.innerHTML =
+      '<div class="card empty-card">记录加载失败，请刷新页面重试</div>';
+    setStatus(loadResult.message, "error");
   }
 
   document.addEventListener("visibilitychange", async () => {
@@ -98,6 +104,12 @@ async function init() {
     }
   });
 }
+
+elements.input.addEventListener("focus", () => {
+  setTimeout(() => {
+    elements.input.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 300);
+});
 
 elements.extractBtn.addEventListener("click", extractContent);
 elements.logoutBtn.addEventListener("click", async () => {

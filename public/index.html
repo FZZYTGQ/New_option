@@ -2,11 +2,10 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="小赵学姐的黑科技 - 视频口播稿提取与 AI 总结">
   <title>小赵学姐的黑科技</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
   <div class="page">
@@ -39,7 +38,32 @@
 
     <section class="records-section">
       <h2 class="section-title">我的记录</h2>
-      <div id="records-list" class="history-list"></div>
+      <div id="records-list" class="history-list history-list--loading" aria-busy="true" aria-label="正在加载记录">
+        <div class="history-skeleton" aria-hidden="true">
+          <div class="history-skeleton__meta">
+            <span class="history-skeleton__chip"></span>
+            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
+            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
+          </div>
+          <div class="history-skeleton__title"></div>
+        </div>
+        <div class="history-skeleton" aria-hidden="true">
+          <div class="history-skeleton__meta">
+            <span class="history-skeleton__chip"></span>
+            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
+            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
+          </div>
+          <div class="history-skeleton__title history-skeleton__title--short"></div>
+        </div>
+        <div class="history-skeleton" aria-hidden="true">
+          <div class="history-skeleton__meta">
+            <span class="history-skeleton__chip"></span>
+            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
+            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
+          </div>
+          <div class="history-skeleton__title history-skeleton__title--medium"></div>
+        </div>
+      </div>
       <div class="records-section__footer">
         <a class="btn btn--secondary btn--block" href="/history.html">查看全部历史记录</a>
       </div>

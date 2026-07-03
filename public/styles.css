@@ -88,7 +88,7 @@ body {
 }
 
 .hero__logo {
-  width: min(180px, 28vw);
+  width: min(200px, 28vw);
   height: auto;
 }
 
@@ -127,6 +127,7 @@ body {
   border-radius: 12px;
   padding: 14px;
   font: inherit;
+  font-size: 16px;
   resize: vertical;
   min-height: 120px;
   background: #fafafa;
@@ -155,6 +156,7 @@ body {
   border-radius: 12px;
   padding: 12px 14px;
   font: inherit;
+  font-size: 16px;
   background: #fafafa;
 }
 
@@ -446,6 +448,62 @@ body {
   gap: 12px;
 }
 
+.history-skeleton {
+  border: 1px solid #ececec;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  padding: 16px;
+}
+
+.history-skeleton__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.history-skeleton__chip {
+  display: block;
+  height: 20px;
+  width: 48px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e8edf3 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: history-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.history-skeleton__chip--sm {
+  width: 56px;
+}
+
+.history-skeleton__title {
+  height: 16px;
+  width: 88%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e8edf3 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: history-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.history-skeleton__title--short {
+  width: 62%;
+}
+
+.history-skeleton__title--medium {
+  width: 76%;
+}
+
+@keyframes history-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 .history-accordion {
   border: 1px solid #ececec;
   border-radius: 14px;
@@ -509,8 +567,7 @@ body {
 }
 
 .history-result__toolbar .tabs {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 0 0 auto;
 }
 
 .history-result__toolbar .result__actions {

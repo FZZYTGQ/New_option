@@ -75,8 +75,8 @@ function renderPendingBody(accordion, record) {
   const body = accordion.querySelector(".history-accordion__body");
   const message =
     record.status === "queued"
-      ? "排队中，前方任务完成后将自动开始处理"
-      : "正在转写和总结，约需 1～3 分钟，可稍后再看";
+      ? "排队中，等待前方任务完成"
+      : "正在处理，约需 1～3 分钟，可稍后再看";
   body.innerHTML = `<div class="history-accordion__pending">${escapeHtml(message)}</div>`;
 }
 
@@ -124,7 +124,7 @@ function renderAccordionDetail(accordion, record) {
   `;
 
   body.querySelector(".history-transcript").textContent = record.transcript || "暂无转写内容";
-  renderMarkdown(
+  void renderMarkdown(
     body.querySelector(".history-summary"),
     record.summary || (record.status === "failed" ? "总结失败" : "暂无总结内容")
   );
@@ -262,6 +262,8 @@ export function createHistoryListController({
     items = newItems;
     listCache.clear();
     items.forEach((item) => listCache.set(item.id, item));
+    container.classList.remove("history-list--loading");
+    container.removeAttribute("aria-busy");
 
     if (!items.length) {
       container.innerHTML = `<div class="card empty-card">${escapeHtml(emptyMessage)}</div>`;
