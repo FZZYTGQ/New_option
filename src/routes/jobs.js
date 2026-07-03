@@ -1,13 +1,10 @@
 import { countProcessingJobs } from "../db.js";
 import { jsonResponse } from "../http.js";
-import { getJobSecret, promoteAndSchedule } from "../jobScheduler.js";
+import { isValidJobSecret, promoteAndSchedule } from "../jobScheduler.js";
 import { runExtractJob } from "./extract.js";
 
 export async function handleJobRun(request, env, ctx, historyId) {
-  const secret = getJobSecret(env);
-  const authHeader = request.headers.get("Authorization");
-
-  if (!secret || authHeader !== `Bearer ${secret}`) {
+  if (!isValidJobSecret(request, env)) {
     return jsonResponse({ success: false, error: "Unauthorized" }, 401);
   }
 

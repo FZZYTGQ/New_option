@@ -31,7 +31,8 @@ async function extractContent() {
     return;
   }
 
-  setStatus("正在提交…", "loading");
+  setStatus("正在处理，可能需要 1～3 分钟，请稍候…", "loading");
+  elements.extractBtn.disabled = true;
 
   try {
     const response = await fetch("/api/extract", {
@@ -62,6 +63,8 @@ async function extractContent() {
     }
   } catch (error) {
     setStatus(error.message || "提交失败，请稍后重试", "error");
+  } finally {
+    elements.extractBtn.disabled = false;
   }
 }
 

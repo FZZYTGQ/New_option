@@ -1,24 +1,38 @@
 import { tryPromoteQueuedJob } from "./db.js";
 
+const JOB_SECRET_HEADER = "X-Job-Secret";
+
 export function getJobSecret(env) {
   return env.INTERNAL_JOB_SECRET || env.ADMIN_PASSWORD;
 }
 
-export function scheduleJobRun(request, env, historyId) {
+export function buildJobRunRequest(request, env, historyId) {
   const secret = getJobSecret(env);
   if (!secret) {
-    return Promise.reject(
-      new Error("任务密钥未配置，请设置 INTERNAL_JOB_SECRET 或 ADMIN_PASSWORD")
-    );
+    throw new Error("任务密钥未配置，请在 Cloudflare 设置 ADMIN_PASSWORD");
   }
 
   const url = new URL(`/api/jobs/${historyId}/run`, request.url);
-  return fetch(url.toString(), {
+  return new Request(url.toString(), {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${secret}`,
+      [JOB_SECRET_HEADER]: secret,
     },
   });
+}
+
+export function scheduleJobRun(request, env, historyId) {
+  const jobRequest = buildJobRunRequest(request, env, historyId);
+  if (env.WORKER) {
+    return env.WORKER.fetch(jobRequest);
+  }
+  return fetch(jobRequest);
+}
+
+export function isValidJobSecret(request, env) {
+  const secret = getJobSecret(env);
+  const provided = request.headers.get(JOB_SECRET_HEADER);
+  return Boolean(secret && provided && provided === secret);
 }
 
 export async function promoteAndSchedule(request, env, userId) {
