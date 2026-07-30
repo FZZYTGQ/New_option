@@ -24,8 +24,32 @@ import { saveShare } from "../share.js";
 
 const QUOTA_EXHAUSTED_MESSAGE = "额度用完了，请联系小赵学姐增加额度";
 
+// #region agent log
+function debugLog(hypothesisId, location, message, data = {}) {
+  fetch("http://127.0.0.1:7261/ingest/1bff3e25-de4a-4550-b309-49dd62349c18", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "1805c8",
+    },
+    body: JSON.stringify({
+      sessionId: "1805c8",
+      runId: "pre-fix",
+      hypothesisId,
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+}
+// #endregion
+
 function startHeartbeat(env, historyId) {
   const timer = setInterval(() => {
+    // #region agent log
+    debugLog("B", "extract.js:heartbeat", "heartbeat tick", { historyId });
+    // #endregion
     touchHistoryHeartbeat(env, historyId).catch(() => {});
   }, JOB_HEARTBEAT_INTERVAL_MS);
   return () => clearInterval(timer);
@@ -55,7 +79,22 @@ async function saveFailedHistory(env, user, extracted, fields) {
 
 export async function runExtractJob(env, historyId, userId) {
   const record = await getHistoryById(env, historyId, userId);
+  // #region agent log
+  debugLog("A", "extract.js:runExtractJob:entry", "runExtractJob entered", {
+    historyId,
+    hasRecord: Boolean(record),
+    status: record?.status || null,
+    platform: record?.platform || null,
+  });
+  // #endregion
   if (!record || record.status !== "processing") {
+    // #region agent log
+    debugLog("D", "extract.js:runExtractJob:early-return", "early return status gate", {
+      historyId,
+      hasRecord: Boolean(record),
+      status: record?.status || null,
+    });
+    // #endregion
     return;
   }
 
@@ -76,8 +115,36 @@ export async function runExtractJob(env, historyId, userId) {
 
     let subtitle;
     try {
+      // #region agent log
+      debugLog("C", "extract.js:bibigpt:start", "fetchSubtitle start", {
+        historyId,
+        platform: record.platform,
+        urlHost: (() => {
+          try {
+            return new URL(record.video_url).hostname;
+          } catch {
+            return "invalid";
+          }
+        })(),
+      });
+      // #endregion
+      const bibigptStartedAt = Date.now();
       subtitle = await fetchSubtitle(record.video_url, bibigptToken);
+      // #region agent log
+      debugLog("C", "extract.js:bibigpt:ok", "fetchSubtitle success", {
+        historyId,
+        elapsedMs: Date.now() - bibigptStartedAt,
+        hasTitle: Boolean(subtitle?.title),
+        transcriptLen: subtitle?.transcript?.length || 0,
+      });
+      // #endregion
     } catch (error) {
+      // #region agent log
+      debugLog("C", "extract.js:bibigpt:error", "fetchSubtitle failed", {
+        historyId,
+        errorMessage: error?.message || String(error),
+      });
+      // #endregion
       await updateHistory(env, historyId, {
         status: "failed",
         error_message: error.message || "转写失败",
@@ -167,10 +234,26 @@ export async function runExtractJob(env, historyId, userId) {
 }
 
 function scheduleInlineJob(env, ctx, historyId, userId) {
+  // #region agent log
+  debugLog("A", "extract.js:scheduleInlineJob", "scheduleInlineJob called", {
+    historyId,
+    userId,
+  });
+  // #endregion
   ctx.waitUntil(
     (async () => {
+      // #region agent log
+      debugLog("A", "extract.js:waitUntil:start", "waitUntil callback started", {
+        historyId,
+      });
+      // #endregion
       try {
         await runExtractJob(env, historyId, userId);
+        // #region agent log
+        debugLog("E", "extract.js:waitUntil:done", "runExtractJob finished", {
+          historyId,
+        });
+        // #endregion
       } catch (error) {
         console.error(`Job ${historyId} failed:`, error);
         try {
@@ -282,6 +365,15 @@ export async function handleExtractSubmit(request, env, ctx) {
   if (status === "processing") {
     scheduleInlineJob(env, ctx, historyId, user.id);
   }
+
+  // #region agent log
+  debugLog("E", "extract.js:submit:response", "extract submit returning", {
+    historyId,
+    status,
+    platform: extracted.platform,
+    processingCount,
+  });
+  // #endregion
 
   return jsonResponse({
     success: true,
