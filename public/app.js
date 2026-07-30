@@ -43,31 +43,6 @@ async function extractContent() {
     });
 
     const payload = await response.json();
-    // #region agent log
-    fetch("http://127.0.0.1:7261/ingest/1bff3e25-de4a-4550-b309-49dd62349c18", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "1805c8",
-      },
-      body: JSON.stringify({
-        sessionId: "1805c8",
-        runId: "pre-fix",
-        hypothesisId: "E",
-        location: "app.js:extractContent",
-        message: "extract API response",
-        data: {
-          ok: response.ok,
-          success: payload?.success,
-          historyId: payload?.data?.historyId || null,
-          status: payload?.data?.status || null,
-          platform: payload?.data?.platform || null,
-          error: payload?.error || null,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     if (!response.ok || !payload.success) {
       throw new Error(payload.error || "提交失败");
     }

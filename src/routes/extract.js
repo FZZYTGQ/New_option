@@ -15,41 +15,17 @@ import {
   MAX_DURATION_SECONDS,
   nowIso,
   touchHistoryHeartbeat,
-  tryPromoteQueuedJob,
   updateHistory,
 } from "../db.js";
 import { jsonResponse } from "../http.js";
+import { promoteAndSchedule, scheduleJobRun } from "../jobScheduler.js";
 import { requireUser } from "../middleware.js";
 import { saveShare } from "../share.js";
 
 const QUOTA_EXHAUSTED_MESSAGE = "额度用完了，请联系小赵学姐增加额度";
 
-// #region agent log
-function debugLog(hypothesisId, location, message, data = {}) {
-  fetch("http://127.0.0.1:7261/ingest/1bff3e25-de4a-4550-b309-49dd62349c18", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "1805c8",
-    },
-    body: JSON.stringify({
-      sessionId: "1805c8",
-      runId: "pre-fix",
-      hypothesisId,
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-}
-// #endregion
-
 function startHeartbeat(env, historyId) {
   const timer = setInterval(() => {
-    // #region agent log
-    debugLog("B", "extract.js:heartbeat", "heartbeat tick", { historyId });
-    // #endregion
     touchHistoryHeartbeat(env, historyId).catch(() => {});
   }, JOB_HEARTBEAT_INTERVAL_MS);
   return () => clearInterval(timer);
@@ -79,22 +55,7 @@ async function saveFailedHistory(env, user, extracted, fields) {
 
 export async function runExtractJob(env, historyId, userId) {
   const record = await getHistoryById(env, historyId, userId);
-  // #region agent log
-  debugLog("A", "extract.js:runExtractJob:entry", "runExtractJob entered", {
-    historyId,
-    hasRecord: Boolean(record),
-    status: record?.status || null,
-    platform: record?.platform || null,
-  });
-  // #endregion
   if (!record || record.status !== "processing") {
-    // #region agent log
-    debugLog("D", "extract.js:runExtractJob:early-return", "early return status gate", {
-      historyId,
-      hasRecord: Boolean(record),
-      status: record?.status || null,
-    });
-    // #endregion
     return;
   }
 
@@ -115,36 +76,8 @@ export async function runExtractJob(env, historyId, userId) {
 
     let subtitle;
     try {
-      // #region agent log
-      debugLog("C", "extract.js:bibigpt:start", "fetchSubtitle start", {
-        historyId,
-        platform: record.platform,
-        urlHost: (() => {
-          try {
-            return new URL(record.video_url).hostname;
-          } catch {
-            return "invalid";
-          }
-        })(),
-      });
-      // #endregion
-      const bibigptStartedAt = Date.now();
       subtitle = await fetchSubtitle(record.video_url, bibigptToken);
-      // #region agent log
-      debugLog("C", "extract.js:bibigpt:ok", "fetchSubtitle success", {
-        historyId,
-        elapsedMs: Date.now() - bibigptStartedAt,
-        hasTitle: Boolean(subtitle?.title),
-        transcriptLen: subtitle?.transcript?.length || 0,
-      });
-      // #endregion
     } catch (error) {
-      // #region agent log
-      debugLog("C", "extract.js:bibigpt:error", "fetchSubtitle failed", {
-        historyId,
-        errorMessage: error?.message || String(error),
-      });
-      // #endregion
       await updateHistory(env, historyId, {
         status: "failed",
         error_message: error.message || "转写失败",
@@ -233,49 +166,40 @@ export async function runExtractJob(env, historyId, userId) {
   }
 }
 
-function scheduleInlineJob(env, ctx, historyId, userId) {
-  // #region agent log
-  debugLog("A", "extract.js:scheduleInlineJob", "scheduleInlineJob called", {
-    historyId,
-    userId,
-  });
-  // #endregion
-  ctx.waitUntil(
-    (async () => {
-      // #region agent log
-      debugLog("A", "extract.js:waitUntil:start", "waitUntil callback started", {
-        historyId,
-      });
-      // #endregion
-      try {
-        await runExtractJob(env, historyId, userId);
-        // #region agent log
-        debugLog("E", "extract.js:waitUntil:done", "runExtractJob finished", {
-          historyId,
-        });
-        // #endregion
-      } catch (error) {
-        console.error(`Job ${historyId} failed:`, error);
-        try {
-          await updateHistory(env, historyId, {
-            status: "failed",
-            error_message: error.message || "处理失败，请重试",
-          });
-        } catch (updateError) {
-          console.error(`Failed to mark job ${historyId} failed:`, updateError);
-        }
-      }
+async function tryDispatchJob(request, env, historyId) {
+  try {
+    const jobResponse = await scheduleJobRun(request, env, historyId);
+    if (jobResponse.ok) {
+      return { ok: true };
+    }
 
-      try {
-        const nextId = await tryPromoteQueuedJob(env, userId);
-        if (nextId) {
-          scheduleInlineJob(env, ctx, nextId, userId);
-        }
-      } catch (error) {
-        console.error(`Failed to promote next job for user ${userId}:`, error);
-      }
-    })()
-  );
+    let errorMessage = `任务调度失败 (HTTP ${jobResponse.status})`;
+    try {
+      const body = await jobResponse.json();
+      errorMessage = body.error || errorMessage;
+    } catch {
+      // ignore parse errors
+    }
+
+    console.error(`Job dispatch failed for ${historyId}: ${errorMessage}`);
+    return { ok: false, error: errorMessage };
+  } catch (error) {
+    console.error(`Job dispatch error for ${historyId}:`, error);
+    return { ok: false, error: error.message || "任务启动失败，请重试" };
+  }
+}
+
+async function dispatchOrFail(request, env, historyId) {
+  const dispatched = await tryDispatchJob(request, env, historyId);
+  if (dispatched.ok) {
+    return dispatched;
+  }
+
+  await updateHistory(env, historyId, {
+    status: "failed",
+    error_message: dispatched.error || "任务启动失败，请重试",
+  });
+  return dispatched;
 }
 
 export async function handleExtractSubmit(request, env, ctx) {
@@ -287,10 +211,7 @@ export async function handleExtractSubmit(request, env, ctx) {
 
   await expireStuckJobs(env, user.id);
   try {
-    const resumedId = await tryPromoteQueuedJob(env, user.id);
-    if (resumedId) {
-      scheduleInlineJob(env, ctx, resumedId, user.id);
-    }
+    await promoteAndSchedule(request, env, user.id);
   } catch (error) {
     console.error("Failed to resume queued job:", error);
   }
@@ -360,20 +281,24 @@ export async function handleExtractSubmit(request, env, ctx) {
   const message =
     status === "queued"
       ? "已加入队列，前方任务完成后将自动开始"
-      : "已提交，正在处理中";
+      : "已提交，正在后台处理，可先去做别的事";
 
   if (status === "processing") {
-    scheduleInlineJob(env, ctx, historyId, user.id);
+    // Dispatch on a separate Worker invocation so the long job is not tied to
+    // the phone browser request (which mobile OS may cancel when switching apps).
+    const dispatchPromise = dispatchOrFail(request, env, historyId);
+    ctx.waitUntil(dispatchPromise);
+    const dispatched = await dispatchPromise;
+    if (!dispatched.ok) {
+      return jsonResponse(
+        {
+          success: false,
+          error: dispatched.error || "任务启动失败，请重试",
+        },
+        500
+      );
+    }
   }
-
-  // #region agent log
-  debugLog("E", "extract.js:submit:response", "extract submit returning", {
-    historyId,
-    status,
-    platform: extracted.platform,
-    processingCount,
-  });
-  // #endregion
 
   return jsonResponse({
     success: true,
