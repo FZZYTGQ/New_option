@@ -1,7 +1,7 @@
 const PLATFORM_HOSTS = {
   bilibili: ["bilibili.com", "b23.tv"],
   douyin: ["douyin.com", "iesdouyin.com"],
-  xiaohongshu: ["xiaohongshu.com", "xhslink.com"],
+  xiaohongshu: ["xiaohongshu.com", "xhslink.com", "xhslink.cn"],
 };
 
 const TRAILING_JUNK = /[)\]}>，。！？；：、'"“”‘’…]+$/u;
