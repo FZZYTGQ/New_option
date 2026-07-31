@@ -1,4 +1,4 @@
-import { apiGet, apiPost, requireAuth } from "./api.js";
+import { apiPost, formatRequestError, requireAuth } from "./api.js";
 import { createHistoryListController } from "./history-list.js";
 import { showToast } from "./toast.js";
 
@@ -35,15 +35,8 @@ async function extractContent() {
   elements.extractBtn.disabled = true;
 
   try {
-    const response = await fetch("/api/extract", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input }),
-    });
-
-    const payload = await response.json();
-    if (!response.ok || !payload.success) {
+    const payload = await apiPost("/api/extract", { input });
+    if (!payload.success) {
       throw new Error(payload.error || "提交失败");
     }
 
@@ -62,7 +55,7 @@ async function extractContent() {
       accordion?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   } catch (error) {
-    setStatus(error.message || "提交失败，请稍后重试", "error");
+    setStatus(formatRequestError(error, "提交失败，请稍后重试"), "error");
   } finally {
     elements.extractBtn.disabled = false;
   }
@@ -87,11 +80,11 @@ async function init() {
   }
 
   if (loadResult instanceof Error) {
+    const tip = formatRequestError(loadResult, "记录加载失败，请刷新页面重试");
     elements.recordsList.classList.remove("history-list--loading");
     elements.recordsList.removeAttribute("aria-busy");
-    elements.recordsList.innerHTML =
-      '<div class="card empty-card">记录加载失败，请刷新页面重试</div>';
-    setStatus(loadResult.message, "error");
+    elements.recordsList.innerHTML = `<div class="card empty-card">${tip}</div>`;
+    setStatus(tip, "error");
   }
 
   document.addEventListener("visibilitychange", async () => {

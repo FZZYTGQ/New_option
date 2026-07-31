@@ -225,6 +225,8 @@ body {
 .status--error {
   background: #fef2f2;
   color: #b91c1c;
+  white-space: pre-wrap;
+  line-height: 1.55;
 }
 
 .result {
@@ -593,6 +595,39 @@ body {
 
 .history-accordion__error {
   color: #b91c1c;
+  line-height: 1.6;
+}
+
+.history-accordion__error-title {
+  margin-bottom: 8px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.history-accordion__error-body {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.history-accordion__error-body--inline {
+  margin-top: 10px;
+}
+
+.history-item__error {
+  margin: 8px 0 0;
+  color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
 }
 
 .history-item {

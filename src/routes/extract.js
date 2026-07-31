@@ -17,12 +17,18 @@ import {
   touchHistoryHeartbeat,
   updateHistory,
 } from "../db.js";
+import { failureMessage } from "../errorMessage.js";
 import { jsonResponse } from "../http.js";
 import { promoteAndSchedule, scheduleJobRun } from "../jobScheduler.js";
 import { requireUser } from "../middleware.js";
 import { saveShare } from "../share.js";
 
-const QUOTA_EXHAUSTED_MESSAGE = "额度用完了，请联系小赵学姐增加额度";
+const QUOTA_EXHAUSTED_MESSAGE = failureMessage({
+  stage: "账号额度",
+  problem: "可用分钟数不足",
+  detail: "当前剩余额度不够完成本次提取",
+  tip: "请联系小赵学姐增加额度",
+});
 
 function startHeartbeat(env, historyId) {
   const timer = setInterval(() => {
@@ -67,9 +73,20 @@ export async function runExtractJob(env, historyId, userId) {
     const bibigptToken = env.BIBIGPT_API_TOKEN;
     const deepseekKey = env.DEEPSEEK_API_KEY;
     if (!bibigptToken || !deepseekKey) {
+      const missing = [
+        !bibigptToken ? "BIBIGPT_API_TOKEN" : null,
+        !deepseekKey ? "DEEPSEEK_API_KEY" : null,
+      ]
+        .filter(Boolean)
+        .join("、");
       await updateHistory(env, historyId, {
         status: "failed",
-        error_message: "服务端 API 密钥未配置，请联系管理员",
+        error_message: failureMessage({
+          stage: "服务端配置",
+          problem: "API 密钥未配置",
+          detail: `缺少：${missing}`,
+          tip: "请在 Cloudflare Secrets 中配置对应密钥后重试",
+        }),
       });
       return;
     }
@@ -80,7 +97,11 @@ export async function runExtractJob(env, historyId, userId) {
     } catch (error) {
       await updateHistory(env, historyId, {
         status: "failed",
-        error_message: error.message || "转写失败",
+        error_message: error.message || failureMessage({
+          stage: "本站服务器 → BibiGPT（转写）",
+          problem: "转写失败",
+          tip: "请稍后重试",
+        }),
       });
       return;
     }
@@ -94,7 +115,12 @@ export async function runExtractJob(env, historyId, userId) {
         author: subtitle.author,
         duration_seconds: durationSeconds,
         status: "failed",
-        error_message: "视频超过 30 分钟，暂不支持",
+        error_message: failureMessage({
+          stage: "视频时长校验",
+          problem: "视频超过 30 分钟",
+          detail: `当前约 ${Math.ceil(durationSeconds / 60)} 分钟，上限 30 分钟`,
+          tip: "请换更短的视频，本次未扣费",
+        }),
       });
       return;
     }
@@ -109,7 +135,12 @@ export async function runExtractJob(env, historyId, userId) {
         duration_seconds: durationSeconds,
         transcript: subtitle.transcript,
         status: "failed",
-        error_message: QUOTA_EXHAUSTED_MESSAGE,
+        error_message: failureMessage({
+          stage: "账号额度",
+          problem: "剩余额度不足",
+          detail: `本次需 ${minutesToCharge} 分钟，当前剩余 ${quotaMinutes} 分钟`,
+          tip: "请联系小赵学姐增加额度",
+        }),
       });
       return;
     }
@@ -139,7 +170,14 @@ export async function runExtractJob(env, historyId, userId) {
       transcript: subtitle.transcript,
       summary: isSuccess ? summary : null,
       status: isSuccess ? "success" : "failed",
-      error_message: summaryError?.message || null,
+      error_message: summaryError
+        ? summaryError.message ||
+          failureMessage({
+            stage: "本站服务器 → DeepSeek（总结）",
+            problem: "总结失败",
+            tip: "转写已完成并已扣费，可稍后重试或联系管理员",
+          })
+        : null,
     });
 
     await chargeUserQuota(env, userId, minutesToCharge, historyId);
@@ -159,7 +197,13 @@ export async function runExtractJob(env, historyId, userId) {
   } catch (error) {
     await updateHistory(env, historyId, {
       status: "failed",
-      error_message: error.message || "处理失败，请重试",
+      error_message:
+        error.message ||
+        failureMessage({
+          stage: "后台任务",
+          problem: "处理失败",
+          tip: "请稍后重试",
+        }),
     });
   } finally {
     stopHeartbeat();
@@ -173,19 +217,33 @@ async function tryDispatchJob(request, env, historyId) {
       return { ok: true };
     }
 
-    let errorMessage = `任务调度失败 (HTTP ${jobResponse.status})`;
+    let detail = `HTTP ${jobResponse.status}`;
     try {
       const body = await jobResponse.json();
-      errorMessage = body.error || errorMessage;
+      detail = body.error || detail;
     } catch {
       // ignore parse errors
     }
 
+    const errorMessage = failureMessage({
+      stage: "任务调度（启动后台转写/总结）",
+      problem: "后台任务启动失败",
+      detail,
+      tip: "请稍后重试；若持续失败，检查 Worker 服务绑定与 ADMIN_PASSWORD 配置",
+    });
     console.error(`Job dispatch failed for ${historyId}: ${errorMessage}`);
     return { ok: false, error: errorMessage };
   } catch (error) {
     console.error(`Job dispatch error for ${historyId}:`, error);
-    return { ok: false, error: error.message || "任务启动失败，请重试" };
+    return {
+      ok: false,
+      error: failureMessage({
+        stage: "任务调度（启动后台转写/总结）",
+        problem: "后台任务启动异常",
+        detail: error.message || "未知错误",
+        tip: "请稍后重试",
+      }),
+    };
   }
 }
 
@@ -234,24 +292,38 @@ export async function handleExtractSubmit(request, env, ctx) {
 
   const extracted = extractVideoUrl(input);
   if (!extracted) {
+    const linkError = failureMessage({
+      stage: "链接识别",
+      problem: "未识别到支持的视频链接",
+      detail: "当前只支持抖音、B站、小红书分享文案或链接",
+      tip: "请粘贴完整分享内容（含 http 链接）后再试",
+    });
     await saveFailedHistory(env, user, null, {
       video_url: input.slice(0, 500),
-      error_message: "未识别到支持的视频链接，请确认包含抖音、B站或小红书链接",
+      error_message: linkError,
     });
-    return jsonResponse(
-      {
-        success: false,
-        error: "未识别到支持的视频链接，请确认包含抖音、B站或小红书链接",
-      },
-      400
-    );
+    return jsonResponse({ success: false, error: linkError }, 400);
   }
 
   const bibigptToken = env.BIBIGPT_API_TOKEN;
   const deepseekKey = env.DEEPSEEK_API_KEY;
   if (!bibigptToken || !deepseekKey) {
+    const missing = [
+      !bibigptToken ? "BIBIGPT_API_TOKEN" : null,
+      !deepseekKey ? "DEEPSEEK_API_KEY" : null,
+    ]
+      .filter(Boolean)
+      .join("、");
     return jsonResponse(
-      { success: false, error: "服务端 API 密钥未配置，请联系管理员" },
+      {
+        success: false,
+        error: failureMessage({
+          stage: "服务端配置",
+          problem: "API 密钥未配置",
+          detail: `缺少：${missing}`,
+          tip: "请在 Cloudflare Secrets 中配置后重试",
+        }),
+      },
       500
     );
   }

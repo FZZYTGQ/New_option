@@ -1,4 +1,7 @@
+import { failureMessage } from "./errorMessage.js";
 import { DEEPSEEK_TIMEOUT_MS, fetchWithTimeout } from "./fetchWithTimeout.js";
+
+const STAGE = "本站服务器 → DeepSeek（总结）";
 
 function tryParseSummaryError(content) {
   const trimmed = content.trim();
@@ -39,7 +42,8 @@ export async function summarizeTranscript({ title, transcript, apiKey, playbook 
         temperature: 0.3,
       }),
     },
-    DEEPSEEK_TIMEOUT_MS
+    DEEPSEEK_TIMEOUT_MS,
+    "DeepSeek（总结）"
   );
 
   const raw = await response.text();
@@ -47,25 +51,55 @@ export async function summarizeTranscript({ title, transcript, apiKey, playbook 
   try {
     data = JSON.parse(raw);
   } catch {
-    throw new Error(`DeepSeek 返回了无法解析的响应: ${raw.slice(0, 200)}`);
+    throw new Error(
+      failureMessage({
+        stage: STAGE,
+        problem: "DeepSeek 返回内容无法解析",
+        detail: raw.slice(0, 200) || "空响应",
+        tip: "多为服务端异常，请稍后重试",
+      })
+    );
   }
 
   if (!response.ok) {
+    const apiMsg = data?.error?.message || `HTTP ${response.status}`;
     throw new Error(
-      data?.error?.message || `DeepSeek 请求失败 (${response.status})`
+      failureMessage({
+        stage: STAGE,
+        problem: `DeepSeek 接口报错（HTTP ${response.status}）`,
+        detail: String(apiMsg),
+        tip:
+          response.status === 401 || response.status === 403
+            ? "请检查 Cloudflare Secrets 里的 DEEPSEEK_API_KEY 是否有效"
+            : "请稍后重试；若持续失败，检查 DeepSeek 账户余额/限流",
+      })
     );
   }
 
   const content = data.choices?.[0]?.message?.content?.trim() || "";
   const summaryError = tryParseSummaryError(content);
   if (summaryError) {
-    const error = new Error(summaryError.des || summaryError.msg || "内容过短或无法总结");
+    const error = new Error(
+      failureMessage({
+        stage: STAGE,
+        problem: "内容无法生成有效总结",
+        detail: summaryError.des || summaryError.msg || `业务码 ${summaryError.code}`,
+        tip: "口播稿可能过短或无效，可换一条内容更完整的视频",
+      })
+    );
     error.code = summaryError.code;
     throw error;
   }
 
   if (!content) {
-    throw new Error("DeepSeek 未返回总结内容");
+    throw new Error(
+      failureMessage({
+        stage: STAGE,
+        problem: "DeepSeek 未返回总结正文",
+        detail: "接口成功，但 choices 内容为空",
+        tip: "请稍后重试",
+      })
+    );
   }
 
   return { summary: content };

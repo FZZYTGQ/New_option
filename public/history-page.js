@@ -1,4 +1,4 @@
-import { apiGet, requireAuth } from "./api.js";
+import { formatRequestError, requireAuth } from "./api.js";
 import { createHistoryListController } from "./history-list.js";
 
 const historyList = document.getElementById("history-list");
@@ -31,7 +31,7 @@ async function init() {
       await recordsController.toggleAccordion(detailId);
     }
   } catch (error) {
-    setStatus(error.message || "加载历史记录失败");
+    setStatus(formatRequestError(error, "加载历史记录失败"));
   }
 
   document.addEventListener("visibilitychange", async () => {

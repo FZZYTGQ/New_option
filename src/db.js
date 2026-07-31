@@ -138,11 +138,17 @@ export async function touchHistoryHeartbeat(env, historyId) {
 
 export async function expireStuckJobs(env, userId) {
   const cutoff = new Date(Date.now() - JOB_TIMEOUT_MINUTES * 60 * 1000).toISOString();
+  const timeoutMessage = [
+    "【环节】后台任务执行",
+    "【问题】处理超时",
+    `【详情】超过 ${JOB_TIMEOUT_MINUTES} 分钟无进度更新，任务已被标记失败`,
+    "【建议】请重新提交；若多次超时，可能是 BibiGPT/DeepSeek 过慢或任务卡住",
+  ].join("\n");
   await env.DB.prepare(
-    `UPDATE history SET status = 'failed', error_message = '处理超时，请重试', updated_at = ?
+    `UPDATE history SET status = 'failed', error_message = ?, updated_at = ?
      WHERE user_id = ? AND status = 'processing' AND updated_at < ?`
   )
-    .bind(nowIso(), userId, cutoff)
+    .bind(timeoutMessage, nowIso(), userId, cutoff)
     .run();
 }
 

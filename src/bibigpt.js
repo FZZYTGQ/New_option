@@ -1,4 +1,7 @@
+import { failureMessage } from "./errorMessage.js";
 import { BIBIGPT_TIMEOUT_MS, fetchWithTimeout } from "./fetchWithTimeout.js";
+
+const STAGE = "本站服务器 → BibiGPT（转写）";
 
 export async function fetchSubtitle(videoUrl, apiToken) {
   const apiUrl = new URL("https://api.bibigpt.co/api/v1/getSubtitle");
@@ -12,7 +15,8 @@ export async function fetchSubtitle(videoUrl, apiToken) {
         Authorization: `Bearer ${apiToken}`,
       },
     },
-    BIBIGPT_TIMEOUT_MS
+    BIBIGPT_TIMEOUT_MS,
+    "BibiGPT（转写）"
   );
 
   const raw = await response.text();
@@ -20,17 +24,40 @@ export async function fetchSubtitle(videoUrl, apiToken) {
   try {
     data = JSON.parse(raw);
   } catch {
-    throw new Error(`BibiGPT 返回了无法解析的响应: ${raw.slice(0, 200)}`);
+    throw new Error(
+      failureMessage({
+        stage: STAGE,
+        problem: "BibiGPT 返回内容无法解析",
+        detail: raw.slice(0, 200) || "空响应",
+        tip: "多为服务端异常或网关返回了非 JSON，请稍后重试",
+      })
+    );
   }
 
   if (!response.ok) {
+    const apiMsg = data?.message || data?.error || `HTTP ${response.status}`;
     throw new Error(
-      data?.message || data?.error || `BibiGPT 请求失败 (${response.status})`
+      failureMessage({
+        stage: STAGE,
+        problem: `BibiGPT 接口报错（HTTP ${response.status}）`,
+        detail: String(apiMsg),
+        tip:
+          response.status === 401 || response.status === 403
+            ? "请检查 Cloudflare Secrets 里的 BIBIGPT_API_TOKEN 是否有效"
+            : "请稍后重试；若持续失败，检查 BibiGPT 账户额度/状态",
+      })
     );
   }
 
   if (!data.success) {
-    throw new Error(data.message || "BibiGPT 处理失败");
+    throw new Error(
+      failureMessage({
+        stage: STAGE,
+        problem: "BibiGPT 处理失败",
+        detail: data.message || "success=false，未返回成功结果",
+        tip: "请确认视频链接可公开访问，或稍后重试",
+      })
+    );
   }
 
   const detail = data.detail || {};
@@ -41,7 +68,14 @@ export async function fetchSubtitle(videoUrl, apiToken) {
     .join("\n");
 
   if (!transcript) {
-    throw new Error("未能获取口播逐字稿，视频可能没有可用字幕或转写失败");
+    throw new Error(
+      failureMessage({
+        stage: STAGE,
+        problem: "未拿到口播逐字稿",
+        detail: "BibiGPT 成功返回，但字幕/转写文本为空",
+        tip: "视频可能无可用字幕、为纯音乐/画面，或该平台暂不支持，可换一条口播视频试",
+      })
+    );
   }
 
   return {

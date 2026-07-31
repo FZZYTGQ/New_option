@@ -3,6 +3,7 @@ import {
   apiGet,
   escapeHtml,
   formatDate,
+  formatRequestError,
 } from "./api.js";
 import { buildMarkdown, renderMarkdown } from "./markdown.js";
 import { showToast } from "./toast.js";
@@ -89,7 +90,11 @@ function renderAccordionDetail(accordion, record) {
   }
 
   if (record.status === "failed" && !record.transcript) {
-    body.innerHTML = `<div class="history-accordion__error">${escapeHtml(record.error_message || "处理失败")}</div>`;
+    const reason = record.error_message || "处理失败";
+    body.innerHTML = `<div class="history-accordion__error">
+      <div class="history-accordion__error-title">失败诊断</div>
+      <pre class="history-accordion__error-body">${escapeHtml(reason)}</pre>
+    </div>`;
     return;
   }
 
@@ -112,7 +117,11 @@ function renderAccordionDetail(accordion, record) {
           ${record.author ? `<p class="video-meta__item">作者：${escapeHtml(record.author)}</p>` : ""}
           <p class="video-meta__item">链接：<a href="${escapeHtml(record.video_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.video_url)}</a></p>
           <p class="video-meta__item">平台：${escapeHtml(PLATFORM_LABELS[record.platform] || record.platform || "")}</p>
-          ${record.status === "failed" && record.error_message ? `<p class="video-meta__item history-item__status--failed">错误：${escapeHtml(record.error_message)}</p>` : ""}
+          ${
+            record.status === "failed" && record.error_message
+              ? `<pre class="history-accordion__error-body history-accordion__error-body--inline">${escapeHtml(record.error_message)}</pre>`
+              : ""
+          }
         </div>
         <div class="content-box content-box--transcript history-transcript"></div>
       </div>
@@ -149,6 +158,23 @@ function renderAccordionDetail(accordion, record) {
 
 function renderAccordionItem(item) {
   const title = item.title || item.video_url || "未获取到标题";
+  const failedPreview = item.status === "failed"
+    ? (() => {
+        const raw = item.error_message || "处理失败，点击查看详情";
+        const problemLine = raw
+          .split("\n")
+          .find((line) => line.startsWith("【问题】"))
+          ?.replace("【问题】", "")
+          .trim();
+        const stageLine = raw
+          .split("\n")
+          .find((line) => line.startsWith("【环节】"))
+          ?.replace("【环节】", "")
+          .trim();
+        const preview = [stageLine, problemLine].filter(Boolean).join(" · ") || raw.split("\n")[0];
+        return `<p class="history-item__error">${escapeHtml(preview)}</p>`;
+      })()
+    : "";
   return `
     <article class="history-accordion" data-id="${item.id}" data-status="${item.status}">
       <button class="history-accordion__header" type="button" aria-expanded="false">
@@ -161,6 +187,7 @@ function renderAccordionItem(item) {
           <span class="history-item__title">${escapeHtml(title)}</span>
           <span class="history-accordion__chevron" aria-hidden="true">›</span>
         </div>
+        ${failedPreview}
       </button>
       <div class="history-accordion__body" hidden></div>
     </article>`;
@@ -213,18 +240,25 @@ export function createHistoryListController({
       body.innerHTML = `<div class="history-accordion__loading">加载中…</div>`;
     }
 
-    const payload = await apiGet(`/api/history/${id}`);
-    if (!accordion.isConnected || accordion.dataset.id !== id) {
-      return;
-    }
+    try {
+      const payload = await apiGet(`/api/history/${id}`);
+      if (!accordion.isConnected || accordion.dataset.id !== id) {
+        return;
+      }
 
-    if (!payload.success) {
-      body.innerHTML = `<div class="history-accordion__error">${escapeHtml(payload.error || "加载失败")}</div>`;
-      return;
-    }
+      if (!payload.success) {
+        body.innerHTML = `<div class="history-accordion__error"><strong>失败原因：</strong>${escapeHtml(payload.error || "加载失败")}</div>`;
+        return;
+      }
 
-    detailCache.set(id, payload.data);
-    renderAccordionDetail(accordion, payload.data);
+      detailCache.set(id, payload.data);
+      renderAccordionDetail(accordion, payload.data);
+    } catch (error) {
+      if (!accordion.isConnected || accordion.dataset.id !== id) {
+        return;
+      }
+      body.innerHTML = `<div class="history-accordion__error"><strong>失败原因：</strong>${escapeHtml(formatRequestError(error, "加载失败"))}</div>`;
+    }
   }
 
   async function toggleAccordion(id) {
@@ -305,13 +339,22 @@ export function createHistoryListController({
     const previousPending = items.filter((item) => isPending(item.status)).map((item) => item.id);
     renderList(payload.data || []);
 
-    const newlyDone = (payload.data || []).filter(
-      (item) =>
-        previousPending.includes(item.id) &&
-        !isPending(item.status) &&
-        item.status === "success"
+    const newlyFinished = (payload.data || []).filter(
+      (item) => previousPending.includes(item.id) && !isPending(item.status)
     );
-    newlyDone.forEach((item) => detailCache.delete(item.id));
+    newlyFinished.forEach((item) => detailCache.delete(item.id));
+
+    newlyFinished
+      .filter((item) => item.status === "failed")
+      .forEach((item) => {
+        const raw = item.error_message || "处理失败";
+        const problem = raw
+          .split("\n")
+          .find((line) => line.startsWith("【问题】"))
+          ?.replace("【问题】", "")
+          .trim();
+        showToast(`失败：${problem || raw.split("\n")[0]}`);
+      });
 
     return payload.data || [];
   }
