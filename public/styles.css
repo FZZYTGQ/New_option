@@ -696,10 +696,15 @@ body {
 }
 
 .history-item__title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   font-size: 15px;
   font-weight: 600;
   line-height: 1.5;
   color: #1f1f1f;
+  word-break: break-word;
 }
 
 .empty-card {
