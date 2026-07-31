@@ -35,10 +35,10 @@ export function formatRequestError(error, fallback = "请求失败，请稍后�
     lower.includes("fetch failed")
   ) {
     return failureLines({
-      stage: "你的设备 → 本站（Cloudflare）",
+      stage: "你的设备 → 本站",
       problem: "网络连接失败，页面请求没到达服务器",
-      detail: "常见于国内手机流量/部分家用宽带访问 Cloudflare 不稳定（公司网往往正常）",
-      tip: "换公司网络 / 稳定 Wi‑Fi，或开启可稳定访问外网的网络后重试。这不是 BibiGPT/DeepSeek 的问题。",
+      detail: "常见于网络不稳定、跨运营商链路抖动，或站点暂时不可达",
+      tip: "换稳定 Wi‑Fi / 另一网络后重试。这通常不是 BibiGPT/DeepSeek 的问题。",
     });
   }
 
@@ -49,10 +49,10 @@ export function formatRequestError(error, fallback = "请求失败，请稍后�
     message.includes("超时")
   ) {
     return failureLines({
-      stage: "你的设备 → 本站（Cloudflare）",
+      stage: "你的设备 → 本站",
       problem: "请求超时",
       detail: message || "等待服务器响应过久",
-      tip: "网络慢或不稳定时常见；若只在家用流量失败，优先换网络再试",
+      tip: "网络慢或不稳定时常见；优先换网络再试",
     });
   }
 
@@ -63,7 +63,7 @@ export function formatRequestError(error, fallback = "请求失败，请稍后�
     message.includes("无法解析")
   ) {
     return failureLines({
-      stage: "你的设备 → 本站（Cloudflare）",
+      stage: "你的设备 → 本站",
       problem: "服务器响应异常（返回内容不是正常 JSON）",
       detail: "可能被中途拦截、网关错误页，或连接中断",
       tip: "先确认能稳定打开本站，再重试；仍失败可换网络",
@@ -72,7 +72,7 @@ export function formatRequestError(error, fallback = "请求失败，请稍后�
 
   if (message.includes("HTTP")) {
     return failureLines({
-      stage: "你的设备 → 本站（Cloudflare）",
+      stage: "你的设备 → 本站",
       problem: "本站接口返回错误",
       detail: message,
       tip: "查看详情中的 HTTP 状态；5xx 多为服务端问题，4xx 多为请求/登录问题",

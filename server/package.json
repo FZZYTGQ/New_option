@@ -1,0 +1,19 @@
+{
+  "name": "new-option-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "腾讯云 / Node 运行时（保留根目录 Cloudflare Workers 版不动）",
+  "type": "module",
+  "scripts": {
+    "start": "node --import ./register-md.js index.js",
+    "migrate": "node migrate.js",
+    "dev": "node --watch --import ./register-md.js index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "dotenv": "^16.5.0"
+  }
+}

@@ -43,7 +43,7 @@ export async function fetchSubtitle(videoUrl, apiToken) {
         detail: String(apiMsg),
         tip:
           response.status === 401 || response.status === 403
-            ? "请检查 Cloudflare Secrets 里的 BIBIGPT_API_TOKEN 是否有效"
+            ? "请检查服务端环境变量里的 BIBIGPT_API_TOKEN 是否有效"
             : "请稍后重试；若持续失败，检查 BibiGPT 账户额度/状态",
       })
     );

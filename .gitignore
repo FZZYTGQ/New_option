@@ -16,6 +16,12 @@ npm-debug.log*
 # Environment
 .env
 .env.*
+!.env.example
+!server/.env.example
+
+# Node server (Tencent)
+server/data/
+server/node_modules/
 
 # Editor
 .idea/

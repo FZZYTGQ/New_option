@@ -9,7 +9,7 @@ export function getJobSecret(env) {
 export function buildJobRunRequest(request, env, historyId) {
   const secret = getJobSecret(env);
   if (!secret) {
-    throw new Error("任务密钥未配置，请在 Cloudflare 设置 ADMIN_PASSWORD");
+    throw new Error("任务密钥未配置，请设置 ADMIN_PASSWORD（或 INTERNAL_JOB_SECRET）");
   }
 
   const url = new URL(`/api/jobs/${historyId}/run`, request.url);

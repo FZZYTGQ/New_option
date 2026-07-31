@@ -20,7 +20,7 @@ export async function fetchWithTimeout(url, options = {}, timeoutMs, serviceLabe
           stage: `本站服务器 → ${serviceLabel}`,
           problem: "请求超时",
           detail: `${seconds} 秒内未收到 ${serviceLabel} 响应`,
-          tip: "可能是该服务繁忙或链路不稳，请稍后重试；与你手机流量无关（此请求从 Cloudflare 发出）",
+          tip: "可能是该服务繁忙或链路不稳，请稍后重试；与你手机流量无关（此请求由本站服务器发出）",
         })
       );
     }
@@ -30,7 +30,7 @@ export async function fetchWithTimeout(url, options = {}, timeoutMs, serviceLabe
         stage: `本站服务器 → ${serviceLabel}`,
         problem: "网络连接失败",
         detail: error?.message || "连接失败",
-        tip: `Cloudflare 暂时连不上 ${serviceLabel}，请稍后重试或检查该服务是否可用`,
+        tip: `本站服务器暂时连不上 ${serviceLabel}，请稍后重试或检查该服务是否可用`,
       })
     );
   } finally {

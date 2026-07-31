@@ -1,0 +1,15 @@
+[Unit]
+Description=New Option Node Server
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/New_option/server
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node --import ./register-md.js index.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

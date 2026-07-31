@@ -107,6 +107,7 @@ npm install && npm run db:migrate:remote && npm run deploy
 
 ## 技术栈
 
-- Cloudflare Workers + D1 + Static Assets
+- Cloudflare Workers + D1 + Static Assets（默认 / `main`）
+- 可选国内部署：腾讯云 Ubuntu + Node + SQLite（见 `DEPLOY_TENCENT.md`，分支 `deploy/tencent-node`）
 - BibiGPT API（字幕/转写）
 - DeepSeek API（总结）

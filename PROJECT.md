@@ -1,7 +1,7 @@
 # 小赵学姐的黑科技 — 项目进度备忘
 
 > 本文档记录产品讨论结论、当前进度与后续计划，方便重启 Cursor 或新开对话时快速接上上下文。  
-> 最后更新：2026-07-02
+> 最后更新：2026-07-31
 
 ---
 
@@ -21,13 +21,14 @@
 
 | 项目 | 说明 |
 |------|------|
-| 运行时 | Cloudflare Workers |
-| 静态资源 | `public/`（Workers Static Assets） |
-| 数据库 | Cloudflare D1（SQLite） |
+| 运行时 | Cloudflare Workers（主线） / Node（腾讯云国内版） |
+| 静态资源 | `public/` |
+| 数据库 | Cloudflare D1（CF 版） / 本地 SQLite（`server/data/`，国内版） |
 | 转写 | BibiGPT API（`getSubtitle`） |
 | 总结 | DeepSeek API（`deepseek-chat`） |
 | 仓库 | https://github.com/FZZYTGQ/New_option.git |
-| 部署 | 推送到 `main` → Cloudflare 自动构建 |
+| 部署 | `main` → Cloudflare；`deploy/tencent-node` → 见 `DEPLOY_TENCENT.md` |
+| 国内服务器 | 腾讯云轻量 `81.70.201.192`（2核2G） |
 
 **D1 配置（`wrangler.toml`）：**
 

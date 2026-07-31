@@ -85,7 +85,7 @@ export async function runExtractJob(env, historyId, userId) {
           stage: "服务端配置",
           problem: "API 密钥未配置",
           detail: `缺少：${missing}`,
-          tip: "请在 Cloudflare Secrets 中配置对应密钥后重试",
+          tip: "请在服务端环境变量中配置对应密钥后重试",
         }),
       });
       return;
@@ -321,7 +321,7 @@ export async function handleExtractSubmit(request, env, ctx) {
           stage: "服务端配置",
           problem: "API 密钥未配置",
           detail: `缺少：${missing}`,
-          tip: "请在 Cloudflare Secrets 中配置后重试",
+          tip: "请在服务端环境变量中配置后重试",
         }),
       },
       500

@@ -2,12 +2,17 @@
   "name": "new-option",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "小赵学姐的黑科技 - 视频口播稿提取与 AI 总结",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply new-option-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply new-option-db --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply new-option-db --remote",
+    "server:install": "npm install --prefix server",
+    "server:migrate": "npm run migrate --prefix server",
+    "server:dev": "npm run dev --prefix server",
+    "server:start": "npm run start --prefix server"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

@@ -70,7 +70,7 @@ export async function summarizeTranscript({ title, transcript, apiKey, playbook 
         detail: String(apiMsg),
         tip:
           response.status === 401 || response.status === 403
-            ? "请检查 Cloudflare Secrets 里的 DEEPSEEK_API_KEY 是否有效"
+            ? "请检查服务端环境变量里的 DEEPSEEK_API_KEY 是否有效"
             : "请稍后重试；若持续失败，检查 DeepSeek 账户余额/限流",
       })
     );
