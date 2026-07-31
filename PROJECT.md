@@ -29,6 +29,9 @@
 | 仓库 | https://github.com/FZZYTGQ/New_option.git |
 | 部署 | `main` → Cloudflare；`deploy/tencent-node` → 见 `DEPLOY_TENCENT.md` |
 | 国内服务器 | 腾讯云轻量 `81.70.201.192`（2核2G） |
+| 备案域名 | `afterview.cn`（个人备案：运营笔记站） |
+| 备案官网 | `beian-site/`，Nginx 80 端口；见 `BEIAN_SITE.md` |
+| 提取工具 | 暂仍用 `http://81.70.201.192:8787`（勿作备案主站） |
 
 **D1 配置（`wrangler.toml`）：**
 

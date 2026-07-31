@@ -1,0 +1,186 @@
+:root {
+  --bg-deep: #0f1c1a;
+  --bg-mid: #1a332e;
+  --ink: #f3f0e7;
+  --ink-soft: rgba(243, 240, 231, 0.72);
+  --accent: #c8f560;
+  --line: rgba(243, 240, 231, 0.16);
+  --font-display: "Instrument Serif", "Songti SC", "Noto Serif SC", serif;
+  --font-body: "Manrope", "PingFang SC", "Hiragino Sans GB", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: var(--font-body);
+  background: var(--bg-deep);
+  -webkit-font-smoothing: antialiased;
+}
+
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 55% at 15% 10%, rgba(200, 245, 96, 0.18), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 90% 80%, rgba(74, 140, 122, 0.35), transparent 50%),
+    linear-gradient(160deg, var(--bg-deep) 0%, var(--bg-mid) 48%, #10241f 100%);
+}
+
+.atmosphere::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 40rem;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: clamp(3.5rem, 12vh, 7rem) 1.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.brand {
+  margin: 0 0 1.25rem;
+  font-size: clamp(2.75rem, 9vw, 4.5rem);
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  animation: rise 0.9s ease both;
+}
+
+.title {
+  margin: 0 0 1rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
+  color: var(--accent);
+  animation: rise 0.9s ease 0.08s both;
+}
+
+.lead {
+  margin: 0 0 2.75rem;
+  max-width: 28rem;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+  animation: rise 0.9s ease 0.16s both;
+}
+
+.notes {
+  margin: 0 0 3rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--line);
+  animation: rise 0.9s ease 0.24s both;
+}
+
+.notes__label {
+  margin: 0 0 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.notes__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notes__list li {
+  position: relative;
+  margin: 0 0 0.85rem;
+  padding-left: 1rem;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.notes__list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.65em;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.notes__status {
+  margin: 1.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  animation: rise 0.9s ease 0.32s both;
+}
+
+.footer p {
+  margin: 0 0 0.45rem;
+}
+
+.footer a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.footer a:hover {
+  color: var(--accent);
+}
+
+.footer__beian {
+  opacity: 0.85;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand,
+  .title,
+  .lead,
+  .notes,
+  .footer {
+    animation: none;
+  }
+}
