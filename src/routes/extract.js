@@ -281,7 +281,7 @@ export async function handleExtractSubmit(request, env, ctx) {
   const message =
     status === "queued"
       ? "已加入队列，前方任务完成后将自动开始"
-      : "已提交，正在后台处理，可先去做别的事";
+      : "后台处理中，可稍后回来查看";
 
   if (status === "processing") {
     // Dispatch on a separate Worker invocation so the long job is not tied to
