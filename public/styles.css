@@ -128,7 +128,7 @@ body {
   padding: 14px;
   font: inherit;
   font-size: 16px;
-  resize: vertical;
+  resize: none;
   min-height: 120px;
   background: #fafafa;
 }
