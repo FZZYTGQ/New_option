@@ -24,12 +24,6 @@ async function init() {
   try {
     await recordsController.load();
     status.hidden = true;
-
-    const params = new URLSearchParams(window.location.search);
-    const detailId = params.get("id");
-    if (detailId) {
-      await recordsController.toggleAccordion(detailId);
-    }
   } catch (error) {
     setStatus(formatRequestError(error, "加载历史记录失败"));
   }

@@ -94,6 +94,7 @@ npm install && npm run db:migrate:remote && npm run deploy
 |------|------|
 | `/login.html` | 登录 |
 | `/` | 提取首页（需登录） |
+| `/detail.html?id=` | 记录详情（转写 / 总结） |
 | `/history.html` | 历史记录 |
 | `/admin.html` | 管理后台（仅 admin） |
 

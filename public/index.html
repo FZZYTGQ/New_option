@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="小赵学姐的黑科技 - 视频口播稿提取与 AI 总结">
   <title>小赵学姐的黑科技</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
   <div class="page">
     <header class="topbar topbar--home">
@@ -26,51 +29,16 @@
     </header>
 
     <section class="card input-card">
-      <textarea
-        id="share-input"
-        class="textarea"
-        rows="5"
-        placeholder="在此粘贴抖音 / B站 / 小红书的分享链接，暂时只支持30分钟以内的视频哦"
-      ></textarea>
+      <textarea id="share-input" class="textarea" rows="5"
+        placeholder="在此粘贴抖音 / B站 / 小红书的分享链接，暂时只支持30分钟以内的视频哦"></textarea>
       <button id="extract-btn" class="btn btn--primary" type="button">开始提取</button>
     </section>
 
     <div id="status" class="status" hidden></div>
 
-    <section class="records-section">
-      <h2 class="section-title">我的记录</h2>
-      <div id="records-list" class="history-list history-list--loading" aria-busy="true" aria-label="正在加载记录">
-        <div class="history-skeleton" aria-hidden="true">
-          <div class="history-skeleton__meta">
-            <span class="history-skeleton__chip"></span>
-            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
-            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
-          </div>
-          <div class="history-skeleton__title"></div>
-        </div>
-        <div class="history-skeleton" aria-hidden="true">
-          <div class="history-skeleton__meta">
-            <span class="history-skeleton__chip"></span>
-            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
-            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
-          </div>
-          <div class="history-skeleton__title history-skeleton__title--short"></div>
-        </div>
-        <div class="history-skeleton" aria-hidden="true">
-          <div class="history-skeleton__meta">
-            <span class="history-skeleton__chip"></span>
-            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
-            <span class="history-skeleton__chip history-skeleton__chip--sm"></span>
-          </div>
-          <div class="history-skeleton__title history-skeleton__title--medium"></div>
-        </div>
-      </div>
-      <div class="records-section__footer">
-        <a class="btn btn--secondary btn--block" href="/history.html">查看全部历史记录</a>
-      </div>
-    </section>
   </div>
 
   <script type="module" src="app.js"></script>
 </body>
+
 </html>

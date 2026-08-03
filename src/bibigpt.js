@@ -3,10 +3,26 @@ import { BIBIGPT_TIMEOUT_MS, fetchWithTimeout } from "./fetchWithTimeout.js";
 
 const STAGE = "本站服务器 → BibiGPT（转写）";
 
-export async function fetchSubtitle(videoUrl, apiToken) {
+function buildQuotaExceededError(maxDurationSeconds) {
+  const minutes = Math.max(1, Math.floor(Number(maxDurationSeconds || 0) / 60));
+  return new Error(
+    failureMessage({
+      stage: "账号额度",
+      problem: "剩余额度不足",
+      detail: `视频时长超过当前剩余可用 ${minutes} 分钟，已取消转写`,
+      tip: "请联系小赵学姐增加额度，或换更短的视频",
+    })
+  );
+}
+
+export async function fetchSubtitle(videoUrl, apiToken, { maxDurationSeconds } = {}) {
   const apiUrl = new URL("https://api.bibigpt.co/api/v1/getSubtitle");
   apiUrl.searchParams.set("url", videoUrl);
   apiUrl.searchParams.set("audioLanguage", "zh");
+  if (maxDurationSeconds && maxDurationSeconds > 0) {
+    // 让 BibiGPT 在超长时直接 422，避免用完剩余额度还去转写
+    apiUrl.searchParams.set("maxDuration", String(maxDurationSeconds));
+  }
 
   const response = await fetchWithTimeout(
     apiUrl.toString(),
@@ -34,8 +50,20 @@ export async function fetchSubtitle(videoUrl, apiToken) {
     );
   }
 
+  if (response.status === 422) {
+    throw buildQuotaExceededError(maxDurationSeconds);
+  }
+
   if (!response.ok) {
     const apiMsg = data?.message || data?.error || `HTTP ${response.status}`;
+    const lower = String(apiMsg).toLowerCase();
+    if (
+      lower.includes("maxduration") ||
+      lower.includes("max duration") ||
+      (lower.includes("duration") && lower.includes("exceed"))
+    ) {
+      throw buildQuotaExceededError(maxDurationSeconds);
+    }
     throw new Error(
       failureMessage({
         stage: STAGE,

@@ -91,9 +91,24 @@ export async function runExtractJob(env, historyId, userId) {
       return;
     }
 
+    // 转写前先查额度：没额度就不调用 BibiGPT
+    const quotaMinutes = await getUserQuota(env, userId);
+    if (quotaMinutes <= 0) {
+      await updateHistory(env, historyId, {
+        status: "failed",
+        error_message: QUOTA_EXHAUSTED_MESSAGE,
+      });
+      return;
+    }
+
+    // 按剩余额度限制最大可转写时长，超长由 BibiGPT 直接拒绝
+    const maxDurationSeconds = Math.min(quotaMinutes * 60, MAX_DURATION_SECONDS);
+
     let subtitle;
     try {
-      subtitle = await fetchSubtitle(record.video_url, bibigptToken);
+      subtitle = await fetchSubtitle(record.video_url, bibigptToken, {
+        maxDurationSeconds,
+      });
     } catch (error) {
       await updateHistory(env, historyId, {
         status: "failed",
@@ -126,14 +141,15 @@ export async function runExtractJob(env, historyId, userId) {
     }
 
     const minutesToCharge = chargeMinutes(durationSeconds);
-    const quotaMinutes = await getUserQuota(env, userId);
+    // 兜底：若上游未按 maxDuration 拦截，仍拒绝落库与扣费
     if (quotaMinutes < minutesToCharge) {
       await updateHistory(env, historyId, {
         platform: record.platform,
         title: subtitle.title,
         author: subtitle.author,
         duration_seconds: durationSeconds,
-        transcript: subtitle.transcript,
+        transcript: null,
+        summary: null,
         status: "failed",
         error_message: failureMessage({
           stage: "账号额度",

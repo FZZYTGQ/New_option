@@ -44,16 +44,13 @@ async function extractContent() {
     elements.input.value = "";
     showToast(payload.data.message || "已提交");
 
-    await recordsController.load(5);
-
     const newId = payload.data.historyId;
     if (newId) {
-      await recordsController.toggleAccordion(newId);
-      const accordion = elements.recordsList.querySelector(
-        `.history-accordion[data-id="${newId}"]`
-      );
-      accordion?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      window.location.href = `/detail.html?id=${encodeURIComponent(newId)}&from=home`;
+      return;
     }
+
+    await recordsController.load(5);
   } catch (error) {
     setStatus(formatRequestError(error, "提交失败，请稍后重试"), "error");
   } finally {
@@ -66,6 +63,7 @@ async function init() {
     container: elements.recordsList,
     emptyMessage: "暂无记录，提交第一条试试吧",
     limit: 5,
+    detailFrom: "home",
   });
 
   const [user, loadResult] = await Promise.all([

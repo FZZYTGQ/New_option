@@ -3,9 +3,7 @@ import {
   apiGet,
   escapeHtml,
   formatDate,
-  formatRequestError,
 } from "./api.js";
-import { buildMarkdown, renderMarkdown } from "./markdown.js";
 import { showToast } from "./toast.js";
 
 export const STATUS_LABELS = {
@@ -25,159 +23,29 @@ function isPending(status) {
   return status === "processing" || status === "queued";
 }
 
-function getRecordPayload(record) {
-  return {
-    platform: record.platform,
-    videoUrl: record.video_url,
-    title: record.title,
-    author: record.author,
-    transcript: record.transcript || "",
-    summary: record.summary || "",
-  };
+function failedPreviewHtml(item) {
+  if (item.status !== "failed") return "";
+
+  const raw = item.error_message || "处理失败，点击查看详情";
+  const problemLine = raw
+    .split("\n")
+    .find((line) => line.startsWith("【问题】"))
+    ?.replace("【问题】", "")
+    .trim();
+  const stageLine = raw
+    .split("\n")
+    .find((line) => line.startsWith("【环节】"))
+    ?.replace("【环节】", "")
+    .trim();
+  const preview = [stageLine, problemLine].filter(Boolean).join(" · ") || raw.split("\n")[0];
+  return `<p class="history-item__error">${escapeHtml(preview)}</p>`;
 }
 
-function downloadRecord(record) {
-  const payload = getRecordPayload(record);
-  const markdown = buildMarkdown(payload, PLATFORM_LABELS);
-  const safeName = (payload.title || "视频内容").replace(/[\\/:*?"<>|]/g, "_").slice(0, 40);
-  const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${safeName}.md`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-async function copyRecord(record) {
-  try {
-    await navigator.clipboard.writeText(buildMarkdown(getRecordPayload(record), PLATFORM_LABELS));
-    showToast("已复制到剪贴板");
-  } catch {
-    showToast("复制失败，请手动选择内容复制");
-  }
-}
-
-function switchTab(accordion, name) {
-  accordion.querySelectorAll(".tab").forEach((tab) => {
-    const active = tab.dataset.tab === name;
-    tab.classList.toggle("tab--active", active);
-    tab.setAttribute("aria-selected", active ? "true" : "false");
-  });
-
-  accordion.querySelectorAll(".tab-panel").forEach((panel) => {
-    const active = panel.dataset.panel === name;
-    panel.hidden = !active;
-    panel.classList.toggle("tab-panel--active", active);
-  });
-}
-
-function renderPendingBody(accordion, record) {
-  const body = accordion.querySelector(".history-accordion__body");
-  const message =
-    record.status === "queued"
-      ? "排队中，等待前方任务完成"
-      : "正在处理，约需 1～3 分钟，可稍后再看";
-  body.innerHTML = `<div class="history-accordion__pending">${escapeHtml(message)}</div>`;
-}
-
-function renderAccordionDetail(accordion, record) {
-  const body = accordion.querySelector(".history-accordion__body");
-
-  if (isPending(record.status)) {
-    renderPendingBody(accordion, record);
-    return;
-  }
-
-  if (record.status === "failed" && !record.transcript) {
-    const reason = record.error_message || "处理失败";
-    body.innerHTML = `<div class="history-accordion__error">
-      <div class="history-accordion__error-title">失败诊断</div>
-      <pre class="history-accordion__error-body">${escapeHtml(reason)}</pre>
-    </div>`;
-    return;
-  }
-
-  body.innerHTML = `
-    <div class="history-accordion__content card result-card">
-      <div class="result__toolbar history-result__toolbar">
-        <div class="tabs" role="tablist">
-          <button class="tab tab--active" type="button" data-tab="transcript" role="tab">内容转写</button>
-          <button class="tab" type="button" data-tab="summary" role="tab">智能总结</button>
-        </div>
-        <div class="result__actions">
-          <button class="btn btn--secondary history-download-btn" type="button">下载</button>
-          <button class="btn btn--secondary history-copy-btn" type="button">复制</button>
-        </div>
-      </div>
-
-      <div class="tab-panel tab-panel--active" data-panel="transcript" role="tabpanel">
-        <div class="video-meta">
-          <p class="video-meta__title"><strong>${escapeHtml(record.title || "未获取到标题")}</strong></p>
-          ${record.author ? `<p class="video-meta__item">作者：${escapeHtml(record.author)}</p>` : ""}
-          <p class="video-meta__item">链接：<a href="${escapeHtml(record.video_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(record.video_url)}</a></p>
-          <p class="video-meta__item">平台：${escapeHtml(PLATFORM_LABELS[record.platform] || record.platform || "")}</p>
-          ${
-            record.status === "failed" && record.error_message
-              ? `<pre class="history-accordion__error-body history-accordion__error-body--inline">${escapeHtml(record.error_message)}</pre>`
-              : ""
-          }
-        </div>
-        <div class="content-box content-box--transcript history-transcript"></div>
-      </div>
-
-      <div class="tab-panel" data-panel="summary" role="tabpanel" hidden>
-        <div class="content-box content-box--summary markdown-body history-summary"></div>
-      </div>
-    </div>
-  `;
-
-  body.querySelector(".history-transcript").textContent = record.transcript || "暂无转写内容";
-  void renderMarkdown(
-    body.querySelector(".history-summary"),
-    record.summary || (record.status === "failed" ? "总结失败" : "暂无总结内容")
-  );
-
-  body.querySelectorAll(".tab").forEach((tab) => {
-    tab.addEventListener("click", (event) => {
-      event.stopPropagation();
-      switchTab(accordion, tab.dataset.tab);
-    });
-  });
-
-  body.querySelector(".history-download-btn")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    downloadRecord(record);
-  });
-
-  body.querySelector(".history-copy-btn")?.addEventListener("click", async (event) => {
-    event.stopPropagation();
-    await copyRecord(record);
-  });
-}
-
-function renderAccordionItem(item) {
+function renderListItem(item) {
   const title = item.title || item.video_url || "未获取到标题";
-  const failedPreview = item.status === "failed"
-    ? (() => {
-        const raw = item.error_message || "处理失败，点击查看详情";
-        const problemLine = raw
-          .split("\n")
-          .find((line) => line.startsWith("【问题】"))
-          ?.replace("【问题】", "")
-          .trim();
-        const stageLine = raw
-          .split("\n")
-          .find((line) => line.startsWith("【环节】"))
-          ?.replace("【环节】", "")
-          .trim();
-        const preview = [stageLine, problemLine].filter(Boolean).join(" · ") || raw.split("\n")[0];
-        return `<p class="history-item__error">${escapeHtml(preview)}</p>`;
-      })()
-    : "";
   return `
     <article class="history-accordion" data-id="${item.id}" data-status="${item.status}">
-      <button class="history-accordion__header" type="button" aria-expanded="false">
+      <a class="history-accordion__header history-accordion__link" href="/detail.html?id=${encodeURIComponent(item.id)}">
         <div class="history-item__meta">
           <span class="badge">${escapeHtml(PLATFORM_LABELS[item.platform] || item.platform || "未知")}</span>
           <span class="history-item__time">${formatDate(item.created_at)}</span>
@@ -187,9 +55,8 @@ function renderAccordionItem(item) {
           <span class="history-item__title">${escapeHtml(title)}</span>
           <span class="history-accordion__chevron" aria-hidden="true">›</span>
         </div>
-        ${failedPreview}
-      </button>
-      <div class="history-accordion__body" hidden></div>
+        ${failedPreviewHtml(item)}
+      </a>
     </article>`;
 }
 
@@ -197,129 +64,39 @@ export function createHistoryListController({
   container,
   emptyMessage = "还没有记录",
   limit = null,
+  detailFrom = null,
 }) {
-  const detailCache = new Map();
-  const listCache = new Map();
-  let expandedId = null;
   let pollTimer = null;
   let items = [];
 
-  function setAccordionExpanded(accordion, expanded) {
-    const header = accordion.querySelector(".history-accordion__header");
-    const body = accordion.querySelector(".history-accordion__body");
-    header.setAttribute("aria-expanded", expanded ? "true" : "false");
-    accordion.classList.toggle("history-accordion--open", expanded);
-    body.hidden = !expanded;
-  }
-
-  function collapseExpanded() {
-    if (!expandedId) return;
-    const previous = container.querySelector(`.history-accordion[data-id="${expandedId}"]`);
-    if (previous) {
-      setAccordionExpanded(previous, false);
-    }
-    expandedId = null;
-  }
-
-  async function loadAccordionDetail(accordion, id, { showLoading = false } = {}) {
-    const listItem = listCache.get(id);
-
-    if (listItem && isPending(listItem.status)) {
-      renderAccordionDetail(accordion, listItem);
-      return;
-    }
-
-    if (detailCache.has(id)) {
-      renderAccordionDetail(accordion, detailCache.get(id));
-      return;
-    }
-
-    const body = accordion.querySelector(".history-accordion__body");
-    const shouldShowLoading = showLoading && !(listItem && listItem.status === "success");
-    if (shouldShowLoading) {
-      body.innerHTML = `<div class="history-accordion__loading">加载中…</div>`;
-    }
-
-    try {
-      const payload = await apiGet(`/api/history/${id}`);
-      if (!accordion.isConnected || accordion.dataset.id !== id) {
-        return;
-      }
-
-      if (!payload.success) {
-        body.innerHTML = `<div class="history-accordion__error"><strong>失败原因：</strong>${escapeHtml(payload.error || "加载失败")}</div>`;
-        return;
-      }
-
-      detailCache.set(id, payload.data);
-      renderAccordionDetail(accordion, payload.data);
-    } catch (error) {
-      if (!accordion.isConnected || accordion.dataset.id !== id) {
-        return;
-      }
-      body.innerHTML = `<div class="history-accordion__error"><strong>失败原因：</strong>${escapeHtml(formatRequestError(error, "加载失败"))}</div>`;
-    }
-  }
-
-  async function toggleAccordion(id) {
-    const accordion = container.querySelector(`.history-accordion[data-id="${id}"]`);
-    if (!accordion) return;
-
-    if (expandedId === id) {
-      setAccordionExpanded(accordion, false);
-      expandedId = null;
-      return;
-    }
-
-    if (expandedId) {
-      const previous = container.querySelector(`.history-accordion[data-id="${expandedId}"]`);
-      if (previous) {
-        setAccordionExpanded(previous, false);
-      }
-    }
-
-    expandedId = id;
-    setAccordionExpanded(accordion, true);
-    await loadAccordionDetail(accordion, id, { showLoading: true });
-  }
-
-  function bindHeaders() {
-    container.querySelectorAll(".history-accordion__header").forEach((button) => {
-      button.onclick = () => {
-        const accordion = button.closest(".history-accordion");
-        toggleAccordion(accordion.dataset.id);
-      };
-    });
+  function detailHref(id) {
+    const params = new URLSearchParams({ id });
+    if (detailFrom) params.set("from", detailFrom);
+    return `/detail.html?${params.toString()}`;
   }
 
   function renderList(newItems) {
     items = newItems;
-    listCache.clear();
-    items.forEach((item) => listCache.set(item.id, item));
     container.classList.remove("history-list--loading");
     container.removeAttribute("aria-busy");
 
     if (!items.length) {
       container.innerHTML = `<div class="card empty-card">${escapeHtml(emptyMessage)}</div>`;
-      expandedId = null;
       stopPolling();
       return;
     }
 
-    const openId = expandedId;
-    container.innerHTML = items.map(renderAccordionItem).join("");
-    bindHeaders();
-
-    if (openId && listCache.has(openId)) {
-      const accordion = container.querySelector(`.history-accordion[data-id="${openId}"]`);
-      if (accordion) {
-        expandedId = openId;
-        setAccordionExpanded(accordion, true);
-        void loadAccordionDetail(accordion, openId);
-      } else {
-        expandedId = null;
-      }
-    }
+    container.innerHTML = items
+      .map((item) => {
+        const html = renderListItem(item);
+        return detailFrom
+          ? html.replace(
+              `href="/detail.html?id=${encodeURIComponent(item.id)}"`,
+              `href="${detailHref(item.id)}"`
+            )
+          : html;
+      })
+      .join("");
 
     if (items.some((item) => isPending(item.status))) {
       startPolling();
@@ -342,7 +119,6 @@ export function createHistoryListController({
     const newlyFinished = (payload.data || []).filter(
       (item) => previousPending.includes(item.id) && !isPending(item.status)
     );
-    newlyFinished.forEach((item) => detailCache.delete(item.id));
 
     newlyFinished
       .filter((item) => item.status === "failed")
@@ -385,8 +161,6 @@ export function createHistoryListController({
   return {
     load,
     renderList,
-    toggleAccordion,
-    collapseExpanded,
     startPolling,
     stopPolling,
     destroy,
