@@ -2,7 +2,10 @@ const PLATFORM_HOSTS = {
   bilibili: ["bilibili.com", "b23.tv"],
   douyin: ["douyin.com", "iesdouyin.com"],
   xiaohongshu: ["xiaohongshu.com", "xhslink.com", "xhslink.cn"],
+  wechat: ["mp.weixin.qq.com"],
 };
+
+export const SUPPORTED_PLATFORM_LABEL = "抖音、B站、小红书、微信公众号";
 
 const TRAILING_JUNK = /[)\]}>，。！？；：、'"“”‘’…]+$/u;
 
@@ -25,7 +28,8 @@ function detectPlatform(urlString) {
 }
 
 /**
- * Extract the first supported video URL from messy share text.
+ * Extract the first supported content URL from messy share text
+ * (video platforms or WeChat official-account articles).
  */
 export function extractVideoUrl(text) {
   if (!text || typeof text !== "string") {
@@ -41,7 +45,7 @@ export function extractVideoUrl(text) {
   }
 
   const bareHosts = normalized.match(
-    /(?:https?:\/\/)?(?:v\.douyin\.com|www\.douyin\.com|www\.bilibili\.com|b23\.tv|www\.xiaohongshu\.com|xhslink\.com)\/[^\s<>"{}|\\^`[\]]+/giu
+    /(?:https?:\/\/)?(?:v\.douyin\.com|www\.douyin\.com|www\.bilibili\.com|b23\.tv|www\.xiaohongshu\.com|xhslink\.com|mp\.weixin\.qq\.com)\/[^\s<>"{}|\\^`[\]]+/giu
   ) || [];
   for (const raw of bareHosts) {
     const withScheme = raw.startsWith("http") ? raw : `https://${raw}`;
@@ -56,4 +60,8 @@ export function extractVideoUrl(text) {
   }
 
   return null;
+}
+
+export function isArticlePlatform(platform) {
+  return platform === "wechat";
 }

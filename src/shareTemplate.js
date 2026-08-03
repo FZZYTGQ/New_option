@@ -2,6 +2,7 @@ const PLATFORM_LABELS = {
   bilibili: "B站",
   douyin: "抖音",
   xiaohongshu: "小红书",
+  wechat: "微信公众号",
 };
 
 function escapeHtml(value) {
@@ -14,6 +15,8 @@ function escapeHtml(value) {
 
 export function renderSharePage(data, shareId) {
   const platform = PLATFORM_LABELS[data.platform] || data.platform || "";
+  const isArticle = data.platform === "wechat";
+  const transcriptTabLabel = isArticle ? "文章正文" : "内容转写";
   const payload = JSON.stringify(data).replace(/</g, "\\u003c");
 
   return `<!DOCTYPE html>
@@ -21,7 +24,8 @@ export function renderSharePage(data, shareId) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>${escapeHtml(data.title || "视频内容分享")}</title>
+  <title>${escapeHtml(data.title || (isArticle ? "文章内容分享" : "视频内容分享"))}</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -36,7 +40,7 @@ export function renderSharePage(data, shareId) {
     <section class="card result-card">
       <div class="result__toolbar">
         <div class="tabs" role="tablist">
-          <button class="tab tab--active" type="button" data-tab="transcript" role="tab">内容转写</button>
+          <button class="tab tab--active" type="button" data-tab="transcript" role="tab">${transcriptTabLabel}</button>
           <button class="tab" type="button" data-tab="summary" role="tab">智能总结</button>
         </div>
         <div class="result__actions">

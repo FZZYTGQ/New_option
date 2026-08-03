@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>全部记录 - 小赵学姐的黑科技</title>
+  <title>详情 - 小赵学姐的黑科技</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -11,14 +11,14 @@
 <body>
   <div class="page">
     <header class="topbar">
-      <a class="topbar__link" href="/">← 返回首页</a>
-      <h1 class="topbar__title">全部记录</h1>
+      <a id="back-link" class="topbar__link" href="/history.html">← 返回</a>
+      <h1 class="topbar__title">详情</h1>
     </header>
 
     <div id="status" class="status" hidden></div>
-    <section id="history-list" class="history-list"></section>
+    <div id="detail-root" class="detail-root" aria-busy="true"></div>
   </div>
 
-  <script type="module" src="history-page.js"></script>
+  <script type="module" src="detail.js"></script>
 </body>
 </html>
