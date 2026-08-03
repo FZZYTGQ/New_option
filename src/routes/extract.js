@@ -1,6 +1,7 @@
 import { extractVideoUrl } from "../extractUrl.js";
 import { fetchSubtitle } from "../bibigpt.js";
-import { summarizeTranscript } from "../deepseek.js";
+import { generateTitleFromTranscript, summarizeTranscript } from "../deepseek.js";
+import { pickDisplayTitle } from "../title.js";
 import playbook from "../summarize_playbook.md";
 import {
   chargeMinutes,
@@ -123,10 +124,14 @@ export async function runExtractJob(env, historyId, userId) {
 
     const durationSeconds =
       Number(subtitle.duration) || Number(subtitle.costDuration) || 0;
+
+    // a/b：有标题去话题；无标题留话题。c：都没有时后面用 AI 补标题
+    let displayTitle = pickDisplayTitle(subtitle.title);
+
     if (durationSeconds > MAX_DURATION_SECONDS) {
       await updateHistory(env, historyId, {
         platform: record.platform,
-        title: subtitle.title,
+        title: displayTitle || null,
         author: subtitle.author,
         duration_seconds: durationSeconds,
         status: "failed",
@@ -145,7 +150,7 @@ export async function runExtractJob(env, historyId, userId) {
     if (quotaMinutes < minutesToCharge) {
       await updateHistory(env, historyId, {
         platform: record.platform,
-        title: subtitle.title,
+        title: displayTitle || null,
         author: subtitle.author,
         duration_seconds: durationSeconds,
         transcript: null,
@@ -161,11 +166,23 @@ export async function runExtractJob(env, historyId, userId) {
       return;
     }
 
+    if (!displayTitle) {
+      try {
+        const generated = await generateTitleFromTranscript({
+          transcript: subtitle.transcript,
+          apiKey: deepseekKey,
+        });
+        displayTitle = pickDisplayTitle(generated.title) || generated.title || "";
+      } catch {
+        displayTitle = "";
+      }
+    }
+
     let summary = "";
     let summaryError = null;
     try {
       const result = await summarizeTranscript({
-        title: subtitle.title,
+        title: displayTitle || subtitle.title,
         transcript: subtitle.transcript,
         apiKey: deepseekKey,
         playbook,
@@ -179,7 +196,7 @@ export async function runExtractJob(env, historyId, userId) {
 
     await updateHistory(env, historyId, {
       platform: record.platform,
-      title: subtitle.title,
+      title: displayTitle || null,
       author: subtitle.author,
       duration_seconds: durationSeconds || null,
       minutes_charged: minutesToCharge,
@@ -203,7 +220,7 @@ export async function runExtractJob(env, historyId, userId) {
         historyId,
         platform: record.platform,
         videoUrl: record.video_url,
-        title: subtitle.title,
+        title: displayTitle || subtitle.title,
         author: subtitle.author,
         transcript: subtitle.transcript,
         summary,
