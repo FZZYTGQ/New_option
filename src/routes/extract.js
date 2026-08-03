@@ -1,5 +1,6 @@
-import { extractVideoUrl } from "../extractUrl.js";
+import { extractVideoUrl, isArticlePlatform, SUPPORTED_PLATFORM_LABEL } from "../extractUrl.js";
 import { fetchSubtitle } from "../bibigpt.js";
+import { cleanWechatTranscript } from "../cleanTranscript.js";
 import { generateTitleFromTranscript, summarizeTranscript } from "../deepseek.js";
 import { pickDisplayTitle } from "../title.js";
 import playbook from "../summarize_playbook.md";
@@ -92,7 +93,7 @@ export async function runExtractJob(env, historyId, userId) {
       return;
     }
 
-    // 转写前先查额度：没额度就不调用 BibiGPT
+    // 提取前先查额度：没额度就不调用 BibiGPT
     const quotaMinutes = await getUserQuota(env, userId);
     if (quotaMinutes <= 0) {
       await updateHistory(env, historyId, {
@@ -101,6 +102,8 @@ export async function runExtractJob(env, historyId, userId) {
       });
       return;
     }
+
+    const isArticle = isArticlePlatform(record.platform);
 
     // 按剩余额度限制最大可转写时长，超长由 BibiGPT 直接拒绝
     const maxDurationSeconds = Math.min(quotaMinutes * 60, MAX_DURATION_SECONDS);
@@ -115,11 +118,30 @@ export async function runExtractJob(env, historyId, userId) {
         status: "failed",
         error_message: error.message || failureMessage({
           stage: "本站服务器 → BibiGPT（转写）",
-          problem: "转写失败",
+          problem: isArticle ? "公众号正文提取失败" : "转写失败",
           tip: "请稍后重试",
         }),
       });
       return;
+    }
+
+    if (isArticle) {
+      subtitle = {
+        ...subtitle,
+        transcript: cleanWechatTranscript(subtitle.transcript),
+      };
+      if (!subtitle.transcript) {
+        await updateHistory(env, historyId, {
+          status: "failed",
+          error_message: failureMessage({
+            stage: "公众号正文清洗",
+            problem: "清洗后正文为空",
+            detail: "提取结果可能全是页面提示文案",
+            tip: "请确认链接可公开访问，或换一篇文章再试",
+          }),
+        });
+        return;
+      }
     }
 
     const durationSeconds =
@@ -136,10 +158,12 @@ export async function runExtractJob(env, historyId, userId) {
         duration_seconds: durationSeconds,
         status: "failed",
         error_message: failureMessage({
-          stage: "视频时长校验",
-          problem: "视频超过 30 分钟",
+          stage: isArticle ? "内容长度校验" : "视频时长校验",
+          problem: isArticle ? "内容过长，超过额度上限" : "视频超过 30 分钟",
           detail: `当前约 ${Math.ceil(durationSeconds / 60)} 分钟，上限 30 分钟`,
-          tip: "请换更短的视频，本次未扣费",
+          tip: isArticle
+            ? "请换更短的文章，本次未扣费"
+            : "请换更短的视频，本次未扣费",
         }),
       });
       return;
@@ -186,6 +210,7 @@ export async function runExtractJob(env, historyId, userId) {
         transcript: subtitle.transcript,
         apiKey: deepseekKey,
         playbook,
+        contentType: isArticle ? "article" : "video",
       });
       summary = result.summary;
     } catch (error) {
@@ -208,7 +233,9 @@ export async function runExtractJob(env, historyId, userId) {
           failureMessage({
             stage: "本站服务器 → DeepSeek（总结）",
             problem: "总结失败",
-            tip: "转写已完成并已扣费，可稍后重试或联系管理员",
+            tip: isArticle
+              ? "正文已提取并已扣费，可稍后重试或联系管理员"
+              : "转写已完成并已扣费，可稍后重试或联系管理员",
           })
         : null,
     });
@@ -320,15 +347,15 @@ export async function handleExtractSubmit(request, env, ctx) {
 
   const input = payload.input?.trim();
   if (!input) {
-    return jsonResponse({ success: false, error: "请粘贴分享内容或视频链接" }, 400);
+    return jsonResponse({ success: false, error: "请粘贴分享内容、视频链接或公众号文章链接" }, 400);
   }
 
   const extracted = extractVideoUrl(input);
   if (!extracted) {
     const linkError = failureMessage({
       stage: "链接识别",
-      problem: "未识别到支持的视频链接",
-      detail: "当前只支持抖音、B站、小红书分享文案或链接",
+      problem: "未识别到支持的链接",
+      detail: `当前只支持${SUPPORTED_PLATFORM_LABEL}分享文案或链接`,
       tip: "请粘贴完整分享内容（含 http 链接）后再试",
     });
     await saveFailedHistory(env, user, null, {

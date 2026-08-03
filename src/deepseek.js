@@ -78,7 +78,18 @@ export async function generateTitleFromTranscript({ transcript, apiKey }) {
   return { title };
 }
 
-export async function summarizeTranscript({ title, transcript, apiKey, playbook }) {
+export async function summarizeTranscript({
+  title,
+  transcript,
+  apiKey,
+  playbook,
+  contentType = "video",
+}) {
+  const isArticle = contentType === "article";
+  const userPrompt = isArticle
+    ? `请根据以下公众号/文章正文进行总结。\n\n文章标题：${title || "（未知）"}\n\n文章正文：\n${transcript}`
+    : `请根据以下视频口播逐字稿进行总结。\n\n视频标题：${title || "（未知）"}\n\n口播逐字稿：\n${transcript}`;
+
   const response = await fetchWithTimeout(
     "https://api.deepseek.com/chat/completions",
     {
@@ -93,7 +104,7 @@ export async function summarizeTranscript({ title, transcript, apiKey, playbook 
           { role: "system", content: playbook },
           {
             role: "user",
-            content: `请根据以下视频口播逐字稿进行总结。\n\n视频标题：${title || "（未知）"}\n\n口播逐字稿：\n${transcript}`,
+            content: userPrompt,
           },
         ],
         temperature: 0.3,
@@ -141,7 +152,7 @@ export async function summarizeTranscript({ title, transcript, apiKey, playbook 
         stage: STAGE,
         problem: "内容无法生成有效总结",
         detail: summaryError.des || summaryError.msg || `业务码 ${summaryError.code}`,
-        tip: "口播稿可能过短或无效，可换一条内容更完整的视频",
+        tip: "原文可能过短或无效，可换一条内容更完整的链接再试",
       })
     );
     error.code = summaryError.code;

@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="description" content="小赵学姐的黑科技 - 视频口播稿提取与 AI 总结">
+  <meta name="description" content="小赵学姐的黑科技 - 视频口播稿 / 公众号文章提取与 AI 总结">
   <title>小赵学姐的黑科技</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
@@ -25,13 +25,13 @@
     <header class="hero">
       <img src="pic3.png" alt="小赵学姐的黑科技" class="hero__logo">
       <h1 class="hero__title">小赵学姐的黑科技</h1>
-      <p class="hero__subtitle">粘贴分享内容，提取口播稿并生成智能总结</p>
+      <p class="hero__subtitle">粘贴分享内容，提取正文 / 口播稿并生成智能总结</p>
     </header>
 
     <section class="card input-card">
       <div class="input-stack">
         <textarea id="share-input" class="textarea" rows="5"
-          placeholder="在此粘贴抖音 / B站 / 小红书的分享链接，暂时只支持30分钟以内的视频哦"></textarea>
+          placeholder="粘贴抖音 / B站 / 小红书 / 微信公众号链接；视频暂支持 30 分钟以内"></textarea>
         <div id="clipboard-slot" class="clipboard-slot">
           <div class="clipboard-slot__inner">
             <div id="clipboard-prompt" class="clipboard-prompt" role="status">
@@ -43,7 +43,7 @@
                   </svg>
                 </span>
                 <div class="clipboard-prompt__body">
-                  <p class="clipboard-prompt__title">检测到视频链接</p>
+                  <p class="clipboard-prompt__title">检测到可提取链接</p>
                   <p class="clipboard-prompt__hint">可一键填入上方输入框</p>
                 </div>
               </div>

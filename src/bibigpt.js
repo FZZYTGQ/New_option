@@ -99,9 +99,9 @@ export async function fetchSubtitle(videoUrl, apiToken, { maxDurationSeconds } =
     throw new Error(
       failureMessage({
         stage: STAGE,
-        problem: "未拿到口播逐字稿",
-        detail: "BibiGPT 成功返回，但字幕/转写文本为空",
-        tip: "视频可能无可用字幕、为纯音乐/画面，或该平台暂不支持，可换一条口播视频试",
+        problem: "未拿到正文/转写文本",
+        detail: "BibiGPT 成功返回，但字幕/正文为空",
+        tip: "视频可能无字幕/纯音乐，或公众号文章不可公开访问；可换一条口播视频或公开文章再试",
       })
     );
   }

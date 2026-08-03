@@ -38,10 +38,12 @@ export async function renderMarkdown(element, markdown) {
 
 export function buildMarkdown(data, platformLabels) {
   const platform = platformLabels[data.platform] || data.platform || "";
+  const isArticle = data.platform === "wechat";
+  const bodyHeading = isArticle ? "文章正文" : "内容转写";
   const lines = [
-    `# ${data.title || "视频内容"}`,
+    `# ${data.title || (isArticle ? "文章内容" : "视频内容")}`,
     "",
-    "## 内容转写",
+    `## ${bodyHeading}`,
     "",
     `**标题：** ${data.title || "未获取到标题"}`,
   ];

@@ -179,6 +179,7 @@ export const PLATFORM_LABELS = {
   bilibili: "B站",
   douyin: "抖音",
   xiaohongshu: "小红书",
+  wechat: "微信公众号",
 };
 
 export function formatDate(value) {

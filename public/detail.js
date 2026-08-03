@@ -127,10 +127,10 @@ function renderPending(record) {
           <span class="badge">${escapeHtml(PLATFORM_LABELS[record.platform] || record.platform || "未知")}</span>
           ${sourceLinkHtml(record)}
           <span class="history-item__time">${formatDate(record.created_at)}</span>
-        </div>video-meta__item
+        </div>
         <span class="history-item__status history-item__status--${record.status}">${STATUS_LABELS[record.status] || record.status}</span>
       </div>
-      <h2 class="detail-card__title">${escapeHtml(title)}</h2>
+      <h2 class="detail-card__title detail-card__title--pending">${escapeHtml(title)}</h2>
       <div class="detail-card__pending" role="status" aria-live="polite">
         <div class="detail-loading" aria-hidden="true">
           <span class="detail-loading__spinner"></span>
@@ -167,6 +167,7 @@ function renderFailed(record) {
 async function renderSuccess(record) {
   const platformLabel = PLATFORM_LABELS[record.platform] || record.platform || "";
   const title = record.title || "未获取到标题";
+  const transcriptTabLabel = record.platform === "wechat" ? "文章正文" : "内容转写";
 
   elements.root.innerHTML = `
     <section class="detail-card card">
@@ -182,7 +183,7 @@ async function renderSuccess(record) {
 
       <div class="result__toolbar history-result__toolbar detail-card__toolbar">
         <div class="tabs" role="tablist">
-          <button class="tab tab--active" type="button" data-tab="transcript" role="tab">内容转写</button>
+          <button class="tab tab--active" type="button" data-tab="transcript" role="tab">${transcriptTabLabel}</button>
           <button class="tab" type="button" data-tab="summary" role="tab">智能总结</button>
         </div>
         <div class="result__actions">

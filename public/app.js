@@ -10,6 +10,7 @@ const SUPPORTED_HOSTS = [
   "xiaohongshu.com",
   "xhslink.com",
   "xhslink.cn",
+  "mp.weixin.qq.com",
 ];
 
 const elements = {
@@ -47,14 +48,14 @@ function hostMatches(hostname) {
   );
 }
 
-/** 剪切板是否包含抖音 / B站 / 小红书链接 */
+/** 剪切板是否包含抖音 / B站 / 小红书 / 微信公众号链接 */
 function looksLikeSupportedShare(text) {
   const raw = String(text || "").trim();
   if (!raw) return false;
 
   const urls = raw.match(/https?:\/\/[^\s<>"{}|\\^`[\]]+/giu) || [];
   const bare = raw.match(
-    /(?:https?:\/\/)?(?:v\.douyin\.com|www\.douyin\.com|www\.bilibili\.com|b23\.tv|www\.xiaohongshu\.com|xhslink\.com|xhslink\.cn)\/[^\s<>"{}|\\^`[\]]+/giu
+    /(?:https?:\/\/)?(?:v\.douyin\.com|www\.douyin\.com|www\.bilibili\.com|b23\.tv|www\.xiaohongshu\.com|xhslink\.com|xhslink\.cn|mp\.weixin\.qq\.com)\/[^\s<>"{}|\\^`[\]]+/giu
   ) || [];
 
   for (const candidate of [...urls, ...bare]) {
