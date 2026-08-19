@@ -1,7 +1,7 @@
 # AfterView 备案官网部署
 
 域名 `afterview.cn` 对外展示 **运营笔记站**（备案用），  
-提取工具继续用：`http://81.70.201.192:8787`。
+提取工具用：`http://lab.afterview.cn`（Nginx 反代到本机 8787）。
 
 ---
 
@@ -42,9 +42,10 @@ sudo systemctl status nginx --no-pager
 
 应看到「AfterView / 运营笔记」页面，而不是登录提取页。
 
-提取工具验证（应仍可用）：
+提取工具验证：
 
-- http://81.70.201.192:8787/login.html  
+- http://lab.afterview.cn/login.html  
+- 主站仍应是笔记页：http://afterview.cn 
 
 ---
 

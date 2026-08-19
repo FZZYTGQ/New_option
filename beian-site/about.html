@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="关于小赵：AI 工具爱好者，To B 教育 SaaS 产品 / 内容运营，也在小红书和抖音分享。" />
+  <title>关于我 · 小赵学姐的运营笔记</title>
+  <link rel="stylesheet" href="preview.css" />
+</head>
+<body class="about-body">
+  <header class="top">
+    <nav class="nav">
+      <a href="/">首页</a>
+      <a href="/#tools">运营工具</a>
+      <a href="about.html" class="is-active">关于我</a>
+    </nav>
+  </header>
+
+  <main class="about-wrap">
+    <section class="about-copy">
+      <h1>
+        <span class="about-star" aria-hidden="true">✦</span>
+        我叫小赵
+      </h1>
+      <p class="about-lead">一个超绝 E 人，各位电子朋友来串门！👋</p>
+      <p>平时喜欢捣鼓各种 AI 工具。从 AI 产品到 Vibe Coding，从内容创作到各种奇奇怪怪的小玩意儿。</p>
+      <p>目前在一家 To B 教育 SaaS 公司做产品 / 内容运营，负责把一些复杂的东西讲得简单一点、好玩一点。</p>
+      <p>下班时间是一名小创作者，在小红书、抖音分享 AI 工具、效率技巧和一些关于互联网与内容运营的碎碎念。</p>
+      <p>这个网站，就当作我的一个小小数字据点。记录一下正在做什么，也记录一些值得留下来的想法。</p>
+    </section>
+    <div class="about-art">
+      <img src="about-hero.png" alt="在书桌前写笔记的插画" />
+    </div>
+  </main>
+
+  <footer class="foot">
+    <p>
+      © 2026 小赵学姐的运营笔记 All Rights Reserved.
+      <span class="foot__sep">|</span>
+      <button type="button" class="foot__contact" id="contact-toggle">联系我</button>
+      <a class="foot__mail" id="contact-mail" href="mailto:afterview@163.com" hidden>afterview@163.com</a>
+    </p>
+    <p>
+      <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">京ICP备2026050093号</a>
+      <span class="foot__sep">|</span>
+      <a class="beian-gongan" href="https://beian.mps.gov.cn/#/query/webSearch?code=11010602203146" target="_blank" rel="noreferrer">
+        <img src="beian-gongan.png" alt="" width="10" height="11" />
+        京公网安备11010602203146号
+      </a>
+    </p>
+  </footer>
+  <script>
+    document.getElementById("contact-toggle").addEventListener("click", function () {
+      this.hidden = true;
+      document.getElementById("contact-mail").hidden = false;
+    });
+  </script>
+</body>
+</html>
