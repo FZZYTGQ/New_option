@@ -3,6 +3,12 @@ import { DEEPSEEK_TIMEOUT_MS, fetchWithTimeout } from "./fetchWithTimeout.js";
 
 const STAGE = "本站服务器 → DeepSeek（总结）";
 
+function stripSummaryTopicTags(markdown) {
+  return String(markdown || "")
+    .replace(/(?:\s*<br\s*\/?>)*\s*(?:#\[\[[^\]]+\]\]\s*)+$/u, "")
+    .trimEnd();
+}
+
 function tryParseSummaryError(content) {
   const trimmed = content.trim();
   if (!trimmed.startsWith("{") || !trimmed.includes('"code"')) {
@@ -170,5 +176,5 @@ export async function summarizeTranscript({
     );
   }
 
-  return { summary: content };
+  return { summary: stripSummaryTopicTags(content) };
 }

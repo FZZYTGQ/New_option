@@ -18,22 +18,31 @@ function loadMarked() {
   return markedLoadPromise;
 }
 
+/** 去掉智能总结文末的 #[[类型]] #[[领域]] #[[主题]] */
+export function stripSummaryTopicTags(markdown) {
+  return String(markdown || "")
+    .replace(/(?:\s*<br\s*\/?>)*\s*(?:#\[\[[^\]]+\]\]\s*)+$/u, "")
+    .trimEnd();
+}
+
 export async function renderMarkdown(element, markdown) {
   if (!element || !markdown) {
     return;
   }
 
+  const cleaned = stripSummaryTopicTags(markdown);
+
   try {
     await loadMarked();
     if (window.marked?.parse) {
-      element.innerHTML = window.marked.parse(markdown, { breaks: true });
+      element.innerHTML = window.marked.parse(cleaned, { breaks: true });
       return;
     }
   } catch {
     // fall back to plain text
   }
 
-  element.textContent = markdown;
+  element.textContent = cleaned;
 }
 
 export function buildMarkdown(data, platformLabels) {
@@ -58,6 +67,6 @@ export function buildMarkdown(data, platformLabels) {
     lines.push(`**平台：** ${platform}`);
   }
 
-  lines.push("", data.transcript || "", "", "## 智能总结", "", data.summary || "");
+  lines.push("", data.transcript || "", "", "## 智能总结", "", stripSummaryTopicTags(data.summary || ""));
   return lines.join("\n");
 }
