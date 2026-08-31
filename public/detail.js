@@ -1,5 +1,6 @@
 import {
   PLATFORM_LABELS,
+  apiDelete,
   apiGet,
   escapeHtml,
   formatDate,
@@ -7,6 +8,7 @@ import {
   requireAuth,
 } from "./api.js";
 import { buildMarkdown, renderMarkdown } from "./markdown.js";
+import { confirmAction } from "./confirm.js";
 import { showToast } from "./toast.js";
 
 const STATUS_LABELS = {
@@ -113,6 +115,45 @@ function sourceLinkHtml(record) {
   return `<a class="detail-card__source" href="${escapeHtml(record.video_url)}" target="_blank" rel="noopener noreferrer">原文链接</a>`;
 }
 
+function deleteButtonHtml(record) {
+  if (record.status === "processing") return "";
+  return `
+    <div class="detail-card__footer">
+      <button class="detail-delete-btn" type="button">删除记录</button>
+    </div>`;
+}
+
+function backHref() {
+  const from = new URLSearchParams(window.location.search).get("from");
+  return from === "home" ? "/" : "/history.html";
+}
+
+function bindDeleteButton(record) {
+  const btn = elements.root.querySelector(".detail-delete-btn");
+  if (!btn) return;
+
+  btn.addEventListener("click", async () => {
+    const confirmed = await confirmAction({
+      title: "删除记录",
+      message: "确定删除这条记录？删除后无法恢复。",
+      confirmLabel: "删除",
+    });
+    if (!confirmed) return;
+    btn.disabled = true;
+    try {
+      const payload = await apiDelete(`/api/history/${encodeURIComponent(record.id)}`);
+      if (!payload.success) {
+        throw new Error(payload.error || "删除失败");
+      }
+      showToast("已删除");
+      window.location.href = backHref();
+    } catch (error) {
+      showToast(formatRequestError(error, "删除失败"));
+      btn.disabled = false;
+    }
+  });
+}
+
 function renderPending(record) {
   const title = record.title || "处理中…";
   const message =
@@ -137,6 +178,7 @@ function renderPending(record) {
         </div>
         <p class="detail-card__pending-text">${escapeHtml(message)}</p>
       </div>
+      ${deleteButtonHtml(record)}
     </section>
   `;
 }
@@ -160,6 +202,7 @@ function renderFailed(record) {
         <div class="history-accordion__error-title">失败诊断</div>
         <pre class="history-accordion__error-body">${escapeHtml(reason)}</pre>
       </div>
+      ${deleteButtonHtml(record)}
     </section>
   `;
 }
@@ -205,6 +248,7 @@ async function renderSuccess(record) {
       <div class="tab-panel" data-panel="summary" role="tabpanel" hidden>
         <div class="content-box content-box--summary markdown-body detail-summary"></div>
       </div>
+      ${deleteButtonHtml(record)}
     </section>
   `;
 
@@ -237,16 +281,19 @@ async function renderRecord(record) {
 
   if (isPending(record.status)) {
     renderPending(record);
+    bindDeleteButton(record);
     return;
   }
 
   // 额度不足或无转写的失败：只展示失败诊断，不展示内容
   if (record.status === "failed" && (!record.transcript || isQuotaFailure(record))) {
     renderFailed(record);
+    bindDeleteButton(record);
     return;
   }
 
   await renderSuccess(record);
+  bindDeleteButton(record);
 }
 
 async function loadDetail(id, { silent = false } = {}) {

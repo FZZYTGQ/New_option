@@ -1,6 +1,6 @@
 import { jsonResponse } from "../http.js";
 import { requireUser } from "../middleware.js";
-import { expireStuckJobs } from "../db.js";
+import { deleteHistory, expireStuckJobs } from "../db.js";
 import { promoteAndSchedule } from "../jobScheduler.js";
 
 export async function handleHistoryList(request, env) {
@@ -59,4 +59,21 @@ export async function handleHistoryDetail(request, env, historyId) {
     success: true,
     data: row,
   });
+}
+
+export async function handleHistoryDelete(request, env, historyId) {
+  const auth = await requireUser(request, env);
+  if (auth.error) {
+    return auth.error;
+  }
+
+  const result = await deleteHistory(env, historyId, auth.user.id);
+  if (result.reason === "not_found") {
+    return jsonResponse({ success: false, error: "记录不存在" }, 404);
+  }
+  if (result.reason === "processing") {
+    return jsonResponse({ success: false, error: "任务处理中，完成后再删除" }, 409);
+  }
+
+  return jsonResponse({ success: true });
 }

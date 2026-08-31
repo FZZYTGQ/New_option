@@ -207,3 +207,36 @@ export async function getHistoryById(env, historyId, userId) {
     .bind(historyId, userId)
     .first();
 }
+
+export async function deleteHistory(env, historyId, userId) {
+  const row = await env.DB.prepare(
+    "SELECT id, status FROM history WHERE id = ? AND user_id = ?"
+  )
+    .bind(historyId, userId)
+    .first();
+
+  if (!row) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  if (row.status === "processing") {
+    return { ok: false, reason: "processing" };
+  }
+
+  await env.DB.prepare("UPDATE usage_logs SET history_id = NULL WHERE history_id = ?")
+    .bind(historyId)
+    .run();
+
+  const result = await env.DB.prepare(
+    "DELETE FROM history WHERE id = ? AND user_id = ? AND status != 'processing'"
+  )
+    .bind(historyId, userId)
+    .run();
+
+  const deleted = result.meta?.changes || 0;
+  if (!deleted) {
+    return { ok: false, reason: "processing" };
+  }
+
+  return { ok: true };
+}

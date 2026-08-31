@@ -1,9 +1,11 @@
 import {
   PLATFORM_LABELS,
+  apiDelete,
   apiGet,
   escapeHtml,
   formatDate,
 } from "./api.js";
+import { confirmAction } from "./confirm.js";
 import { showToast } from "./toast.js";
 
 export const STATUS_LABELS = {
@@ -43,6 +45,10 @@ function failedPreviewHtml(item) {
 
 function renderListItem(item) {
   const title = item.title || item.video_url || "未获取到标题";
+  const canDelete = item.status !== "processing";
+  const deleteBtn = canDelete
+    ? `<button type="button" class="history-item__delete" data-delete="${escapeHtml(item.id)}" aria-label="删除记录">删除</button>`
+    : "";
   return `
     <article class="history-accordion" data-id="${item.id}" data-status="${item.status}">
       <a class="history-accordion__header history-accordion__link" href="/detail.html?id=${encodeURIComponent(item.id)}">
@@ -57,6 +63,7 @@ function renderListItem(item) {
         </div>
         ${failedPreviewHtml(item)}
       </a>
+      ${deleteBtn}
     </article>`;
 }
 
@@ -68,6 +75,7 @@ export function createHistoryListController({
 }) {
   let pollTimer = null;
   let items = [];
+  let deleting = false;
 
   function detailHref(id) {
     const params = new URLSearchParams({ id });
@@ -157,6 +165,40 @@ export function createHistoryListController({
   function destroy() {
     stopPolling();
   }
+
+  container.addEventListener("click", async (event) => {
+    const btn = event.target.closest("[data-delete]");
+    if (!btn || !container.contains(btn)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (deleting) return;
+
+    const id = btn.getAttribute("data-delete");
+    if (!id) return;
+    const confirmed = await confirmAction({
+      title: "删除记录",
+      message: "确定删除这条记录？删除后无法恢复。",
+      confirmLabel: "删除",
+    });
+    if (!confirmed) return;
+
+    deleting = true;
+    btn.disabled = true;
+    try {
+      const payload = await apiDelete(`/api/history/${encodeURIComponent(id)}`);
+      if (!payload.success) {
+        throw new Error(payload.error || "删除失败");
+      }
+      showToast("已删除");
+      await load();
+    } catch (error) {
+      showToast(error.message || "删除失败");
+      btn.disabled = false;
+    } finally {
+      deleting = false;
+    }
+  });
 
   return {
     load,

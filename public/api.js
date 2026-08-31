@@ -140,6 +140,25 @@ export async function apiPost(path, body) {
   }
 }
 
+export async function apiDelete(path) {
+  try {
+    const response = await fetch(path, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const payload = await readApiResponse(response);
+    if (!response.ok && payload && !payload.success) {
+      return payload;
+    }
+    if (!response.ok) {
+      throw new Error(payload?.error || `请求失败 (HTTP ${response.status})`);
+    }
+    return payload;
+  } catch (error) {
+    throw new Error(formatRequestError(error));
+  }
+}
+
 export async function apiPatch(path, body) {
   try {
     const response = await fetch(path, {

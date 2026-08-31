@@ -4,7 +4,7 @@ import { getShare } from "./share.js";
 import { textResponse } from "./http.js";
 import { handleLogin, handleLogout, handleMe } from "./routes/auth.js";
 import { handleExtractSubmit } from "./routes/extract.js";
-import { handleHistoryDetail, handleHistoryList } from "./routes/history.js";
+import { handleHistoryDelete, handleHistoryDetail, handleHistoryList } from "./routes/history.js";
 import { handleJobRun } from "./routes/jobs.js";
 import {
   ensureAdminUser,
@@ -53,6 +53,9 @@ export default {
     const historyMatch = pathname.match(/^\/api\/history\/([a-zA-Z0-9]+)$/);
     if (historyMatch && method === "GET") {
       return handleHistoryDetail(request, env, historyMatch[1]);
+    }
+    if (historyMatch && method === "DELETE") {
+      return handleHistoryDelete(request, env, historyMatch[1]);
     }
 
     if (pathname === "/api/admin/stats" && method === "GET") {
