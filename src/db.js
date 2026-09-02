@@ -1,4 +1,4 @@
-export const MAX_DURATION_SECONDS = 30 * 60;
+export const MAX_DURATION_SECONDS = 60 * 60;
 export const DEFAULT_QUOTA_MINUTES = 30;
 export const MAX_CONCURRENT_JOBS = 3;
 export const JOB_TIMEOUT_MINUTES = 5;

@@ -150,6 +150,7 @@ export async function runExtractJob(env, historyId, userId) {
     // a/b：有标题去话题；无标题留话题。c：都没有时后面用 AI 补标题
     let displayTitle = pickDisplayTitle(subtitle.title);
 
+    const maxDurationMinutes = Math.ceil(MAX_DURATION_SECONDS / 60);
     if (durationSeconds > MAX_DURATION_SECONDS) {
       await updateHistory(env, historyId, {
         platform: record.platform,
@@ -159,8 +160,8 @@ export async function runExtractJob(env, historyId, userId) {
         status: "failed",
         error_message: failureMessage({
           stage: isArticle ? "内容长度校验" : "视频时长校验",
-          problem: isArticle ? "内容过长，超过额度上限" : "视频超过 30 分钟",
-          detail: `当前约 ${Math.ceil(durationSeconds / 60)} 分钟，上限 30 分钟`,
+          problem: isArticle ? "内容过长，超过额度上限" : `视频超过 ${maxDurationMinutes} 分钟`,
+          detail: `当前约 ${Math.ceil(durationSeconds / 60)} 分钟，上限 ${maxDurationMinutes} 分钟`,
           tip: isArticle
             ? "请换更短的文章，本次未扣费"
             : "请换更短的视频，本次未扣费",
